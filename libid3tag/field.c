@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id$
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/field.c 52632 2009-04-02T16:06:53.407795Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H

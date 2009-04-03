@@ -19,7 +19,7 @@
  * If you would like to negotiate alternate licensing terms, you may do
  * so by contacting: Underbit Technologies, Inc. <info@underbit.com>
  *
- * $Id$
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/id3tag.h 52632 2009-04-02T16:06:53.407795Z andy  $
  */
 
 # ifndef LIBID3TAG_ID3TAG_H

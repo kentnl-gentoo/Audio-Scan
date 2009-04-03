@@ -167,3 +167,4 @@ tagutils-ogg.h
 tools/bench.pl
 tools/leak.c
 tools/leak.pl
+META.yml                                 Module meta-data (added by MakeMaker)

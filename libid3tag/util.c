@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/util.c 52629 2009-04-02T14:42:16.820176Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/util.c 52786 2009-04-07T15:38:04.236288Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -101,7 +101,11 @@ id3_byte_t *id3_util_compress(id3_byte_t const *data, id3_length_t length,
   *newlength  = length + 12;
   *newlength += *newlength / 1000;
 
+#ifdef _MSC_VER
+  Newx(compressed, *newlength, id3_byte_t);
+#else
   compressed = malloc(*newlength);
+#endif
   if (compressed) {
     if (compress2(compressed, newlength, data, length,
 		  Z_BEST_COMPRESSION) != Z_OK ||
@@ -112,9 +116,13 @@ id3_byte_t *id3_util_compress(id3_byte_t const *data, id3_length_t length,
     else {
       id3_byte_t *resized;
 
+#ifdef _MSC_VER
+      Renew(compressed, *newlength ? *newlength : 1, id3_byte_t);
+#else
       resized = realloc(compressed, *newlength ? *newlength : 1);
       if (resized)
 	compressed = resized;
+#endif
     }
   }
 
@@ -130,7 +138,11 @@ id3_byte_t *id3_util_decompress(id3_byte_t const *data, id3_length_t length,
 {
   id3_byte_t *decompressed;
 
+#ifdef _MSC_VER
+  Newx(decompressed, newlength ? newlength : 1, id3_byte_t);
+#else
   decompressed = malloc(newlength ? newlength : 1);
+#endif
   if (decompressed) {
     id3_length_t size;
 

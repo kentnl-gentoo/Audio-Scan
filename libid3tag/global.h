@@ -16,11 +16,15 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/global.h 52629 2009-04-02T14:42:16.820176Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/global.h 52786 2009-04-07T15:38:04.236288Z andy  $
  */
 
 # ifndef LIBID3TAG_GLOBAL_H
 # define LIBID3TAG_GLOBAL_H
+
+#ifdef _MSC_VER
+#include "perl.h"
+#endif
 
 /* conditional debugging */
 
@@ -37,6 +41,10 @@
 #  define free(ptr)         id3_debug_free(ptr,        __FILE__, __LINE__)
 #  define release(ptr)      id3_debug_release(ptr,     __FILE__, __LINE__)
 # else
+#  ifdef _MSC_VER
+#    undef free
+#    define free(ptr)       Safefree(ptr)
+#  endif
 #  define release(ptr)  (ptr)
 # endif
 
@@ -44,7 +52,9 @@
 
 # if !defined(HAVE_ASSERT_H)
 #  if defined(NDEBUG)
-#   define assert(x)	/* nothing */
+#   if !defined _MSC_VER
+#     define assert(x)	/* nothing */
+#   endif
 #  else
 #   define assert(x)	do { if (!(x)) abort(); } while (0)
 #  endif

@@ -23,9 +23,10 @@
 /* Initializes the buffer structure. */
 
 void
-buffer_init(Buffer *buffer)
+buffer_init(Buffer *buffer, uint32_t len)
 {
-	const u_int len = 4096;
+	if (!len)
+	  len = 4096;
 
 	buffer->alloc = 0;
   Newx(buffer->buf, len, u_char);
@@ -61,7 +62,7 @@ buffer_clear(Buffer *buffer)
 /* Appends data to the buffer, expanding it if necessary. */
 
 void
-buffer_append(Buffer *buffer, const void *data, u_int len)
+buffer_append(Buffer *buffer, const void *data, uint32_t len)
 {
 	void *p;
 	p = buffer_append_space(buffer, len);
@@ -92,9 +93,9 @@ buffer_compact(Buffer *buffer)
  */
 
 void *
-buffer_append_space(Buffer *buffer, u_int len)
+buffer_append_space(Buffer *buffer, uint32_t len)
 {
-	u_int newlen;
+	uint32_t newlen;
 	void *p;
 
 	if (len > BUFFER_MAX_CHUNK)
@@ -133,7 +134,7 @@ restart:
  * This must follow the same math as buffer_append_space
  */
 int
-buffer_check_alloc(Buffer *buffer, u_int len)
+buffer_check_alloc(Buffer *buffer, uint32_t len)
 {
 	if (buffer->offset == buffer->end) {
 		buffer->offset = 0;
@@ -151,7 +152,7 @@ buffer_check_alloc(Buffer *buffer, u_int len)
 
 /* Returns the number of bytes of data in the buffer. */
 
-u_int
+uint32_t
 buffer_len(Buffer *buffer)
 {
 	return buffer->end - buffer->offset;
@@ -160,7 +161,7 @@ buffer_len(Buffer *buffer)
 /* Gets data from the beginning of the buffer. */
 
 int
-buffer_get_ret(Buffer *buffer, void *buf, u_int len)
+buffer_get_ret(Buffer *buffer, void *buf, uint32_t len)
 {
 	if (len > buffer->end - buffer->offset) {
 		warn("buffer_get_ret: trying to get more bytes %d than in buffer %d",
@@ -173,7 +174,7 @@ buffer_get_ret(Buffer *buffer, void *buf, u_int len)
 }
 
 void
-buffer_get(Buffer *buffer, void *buf, u_int len)
+buffer_get(Buffer *buffer, void *buf, uint32_t len)
 {
 	if (buffer_get_ret(buffer, buf, len) == -1)
 		croak("buffer_get: buffer error");
@@ -182,7 +183,7 @@ buffer_get(Buffer *buffer, void *buf, u_int len)
 /* Consumes the given number of bytes from the beginning of the buffer. */
 
 int
-buffer_consume_ret(Buffer *buffer, u_int bytes)
+buffer_consume_ret(Buffer *buffer, uint32_t bytes)
 {
 	if (bytes > buffer->end - buffer->offset) {
 		warn("buffer_consume_ret: trying to get more bytes than in buffer");
@@ -193,7 +194,7 @@ buffer_consume_ret(Buffer *buffer, u_int bytes)
 }
 
 void
-buffer_consume(Buffer *buffer, u_int bytes)
+buffer_consume(Buffer *buffer, uint32_t bytes)
 {
 	if (buffer_consume_ret(buffer, bytes) == -1)
 		croak("buffer_consume: buffer error");
@@ -202,7 +203,7 @@ buffer_consume(Buffer *buffer, u_int bytes)
 /* Consumes the given number of bytes from the end of the buffer. */
 
 int
-buffer_consume_end_ret(Buffer *buffer, u_int bytes)
+buffer_consume_end_ret(Buffer *buffer, uint32_t bytes)
 {
 	if (bytes > buffer->end - buffer->offset)
 		return (-1);
@@ -211,7 +212,7 @@ buffer_consume_end_ret(Buffer *buffer, u_int bytes)
 }
 
 void
-buffer_consume_end(Buffer *buffer, u_int bytes)
+buffer_consume_end(Buffer *buffer, uint32_t bytes)
 {
 	if (buffer_consume_end_ret(buffer, bytes) == -1)
 		croak("buffer_consume_end: trying to get more bytes than in buffer");
@@ -228,12 +229,16 @@ buffer_ptr(Buffer *buffer)
 /* Dumps the contents of the buffer to stderr. */
 
 void
-buffer_dump(Buffer *buffer)
+buffer_dump(Buffer *buffer, uint32_t len)
 {
-	u_int i;
+	uint32_t i;
 	u_char *ucp = buffer->buf;
+	
+	if (!len) {
+    len = buffer->end - buffer->offset;
+  }
 
-	for (i = buffer->offset; i < buffer->end; i++) {
+	for (i = buffer->offset; i < buffer->offset + len; i++) {
 		fprintf(stderr, "%02x ", ucp[i]);
 		if ((i-buffer->offset)%16==15)
 			fprintf(stderr, "\r\n");
@@ -266,22 +271,22 @@ buffer_get_char(Buffer *buffer)
 	return (u_char) ch;
 }
 
-u_int32_t
+uint32_t
 get_u32le(const void *vp)
 {
   const u_char *p = (const u_char *)vp;
-  u_int32_t v;
+  uint32_t v;
 
-  v  = (u_int32_t)p[3] << 24;
-  v |= (u_int32_t)p[2] << 16;
-  v |= (u_int32_t)p[1] << 8;
-  v |= (u_int32_t)p[0];
+  v  = (uint32_t)p[3] << 24;
+  v |= (uint32_t)p[2] << 16;
+  v |= (uint32_t)p[1] << 8;
+  v |= (uint32_t)p[0];
 
   return (v);
 }
 
 int
-buffer_get_int_le_ret(u_int *ret, Buffer *buffer)
+buffer_get_int_le_ret(uint32_t *ret, Buffer *buffer)
 {
 	u_char buf[4];
 
@@ -291,13 +296,129 @@ buffer_get_int_le_ret(u_int *ret, Buffer *buffer)
 	return (0);
 }
 
-u_int
+uint32_t
 buffer_get_int_le(Buffer *buffer)
 {
-	u_int ret;
+	uint32_t ret;
 
 	if (buffer_get_int_le_ret(&ret, buffer) == -1)
 		croak("buffer_get_int: buffer error");
 
 	return (ret);
+}
+
+uint64_t
+get_u64le(const void *vp)
+{
+	const u_char *p = (const u_char *)vp;
+	uint64_t v;
+
+	v  = (uint64_t)p[7] << 56;
+	v |= (uint64_t)p[6] << 48;
+	v |= (uint64_t)p[5] << 40;
+	v |= (uint64_t)p[4] << 32;
+	v |= (uint64_t)p[3] << 24;
+	v |= (uint64_t)p[2] << 16;
+	v |= (uint64_t)p[1] << 8;
+	v |= (uint64_t)p[0];
+
+	return (v);
+}
+
+int
+buffer_get_int64_le_ret(uint64_t *ret, Buffer *buffer)
+{
+	u_char buf[8];
+
+	if (buffer_get_ret(buffer, (char *) buf, 8) == -1)
+		return (-1);
+	*ret = get_u64le(buf);
+	return (0);
+}
+
+uint64_t
+buffer_get_int64_le(Buffer *buffer)
+{
+	uint64_t ret;
+
+	if (buffer_get_int64_le_ret(&ret, buffer) == -1)
+		croak("buffer_get_int64_le: buffer error");
+
+	return (ret);
+}
+
+uint16_t
+get_u16le(const void *vp)
+{
+	const u_char *p = (const u_char *)vp;
+	uint16_t v;
+
+	v  = (uint16_t)p[1] << 8;
+	v |= (uint16_t)p[0];
+
+	return (v);
+}
+
+int
+buffer_get_short_le_ret(uint16_t *ret, Buffer *buffer)
+{
+	u_char buf[2];
+
+	if (buffer_get_ret(buffer, (char *) buf, 2) == -1)
+		return (-1);
+	*ret = get_u16le(buf);
+	return (0);
+}
+
+uint16_t
+buffer_get_short_le(Buffer *buffer)
+{
+	uint16_t ret;
+
+	if (buffer_get_short_le_ret(&ret, buffer) == -1)
+		croak("buffer_get_short_le: buffer error");
+
+	return (ret);
+}
+
+/*
+ * Stores a character in the buffer.
+ */
+void
+buffer_put_char(Buffer *buffer, int value)
+{
+	char ch = value;
+
+	buffer_append(buffer, &ch, 1);
+}
+
+// XXX supports U+0000 ~ U+FFFF only.
+void
+buffer_get_utf16le_as_utf8(Buffer *buffer, Buffer *utf8, uint32_t len)
+{
+  int i = 0;
+  
+  // Sanity check length
+  if ( len % 2 ) {
+    croak("buffer_get_utf16le_as_utf8: bad length %d", len);
+  }
+  
+  buffer_init(utf8, len);
+  
+  for (i = 0; i < len; i += 2) {
+    uint16_t wc = buffer_get_short_le(buffer);
+
+    if (wc < 0x80) {
+      buffer_put_char(utf8, wc & 0xff);      
+    }
+    else if (wc < 0x800) {
+      buffer_put_char(utf8, 0xc0 | (wc>>6));
+      buffer_put_char(utf8, 0x80 | (wc & 0x3f));
+    }
+    else {
+      buffer_put_char(utf8, 0xe0 | (wc>>12));
+      buffer_put_char(utf8, 0x80 | ((wc>>6) & 0x3f));
+      buffer_put_char(utf8, 0x80 | (wc & 0x3f));
+    }
+  }
 }

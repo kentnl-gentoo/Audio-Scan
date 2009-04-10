@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/field.c 52632 2009-04-02T16:06:53.407795Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/field.c 52786 2009-04-07T15:38:04.236288Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -77,11 +77,19 @@ void id3_field_init(union id3_field *field, enum id3_field_type type)
     break;
 
   case ID3_FIELD_TYPE_LANGUAGE:
+#ifdef _MSC_VER
+    strcpy_s(field->immediate.value, 4, "XXX");
+#else
     strcpy(field->immediate.value, "XXX");
+#endif
     break;
 
   case ID3_FIELD_TYPE_FRAMEID:
+#ifdef _MSC_VER
+    strcpy_s(field->immediate.value, 5, "XXXX");
+#else
     strcpy(field->immediate.value, "XXXX");
+#endif
     break;
 
   case ID3_FIELD_TYPE_DATE:
@@ -257,6 +265,9 @@ int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 	if (latin1 == 0)
 	  goto fail;
 
+#ifdef _MSC_VER
+  Renew(field->latin1list.strings, field->latin1list.nstrings + 1, id3_latin1_t *);
+#else
 	strings = realloc(field->latin1list.strings,
 			  (field->latin1list.nstrings + 1) * sizeof(*strings));
 	if (strings == 0) {
@@ -265,6 +276,7 @@ int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 	}
 
 	field->latin1list.strings = strings;
+#endif
 	field->latin1list.strings[field->latin1list.nstrings++] = latin1;
       }
     }
@@ -296,6 +308,9 @@ int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 	if (ucs4 == 0)
 	  goto fail;
 
+#ifdef _MSC_VER
+  Renew(field->stringlist.strings, field->stringlist.nstrings + 1, id3_ucs4_t *);
+#else
 	strings = realloc(field->stringlist.strings,
 			  (field->stringlist.nstrings + 1) * sizeof(*strings));
 	if (strings == 0) {
@@ -304,6 +319,7 @@ int id3_field_parse(union id3_field *field, id3_byte_t const **ptr,
 	}
 
 	field->stringlist.strings = strings;
+#endif
 	field->stringlist.strings[field->stringlist.nstrings++] = ucs4;
       }
     }
@@ -598,7 +614,11 @@ int id3_field_setstrings(union id3_field *field,
   if (length == 0)
     return 0;
 
+#ifdef _MSC_VER
+  Newx(strings, length, id3_ucs4_t *);
+#else
   strings = malloc(length * sizeof(*strings));
+#endif
   if (strings == 0)
     return -1;
 
@@ -639,6 +659,9 @@ int id3_field_addstring(union id3_field *field, id3_ucs4_t const *string)
   if (new == 0)
     return -1;
 
+#ifdef _MSC_VER
+  Renew(field->stringlist.strings, field->stringlist.nstrings + 1, id3_ucs4_t *);
+#else
   strings = realloc(field->stringlist.strings,
 		    (field->stringlist.nstrings + 1) * sizeof(*strings));
   if (strings == 0) {
@@ -647,6 +670,7 @@ int id3_field_addstring(union id3_field *field, id3_ucs4_t const *string)
   }
 
   field->stringlist.strings = strings;
+#endif
   field->stringlist.strings[field->stringlist.nstrings++] = new;
 
   return 0;
@@ -669,7 +693,11 @@ int id3_field_setlanguage(union id3_field *field, char const *language)
     if (strlen(language) != 3)
       return -1;
 
+#ifdef _MSC_VER
+	strcpy_s(field->immediate.value, 4, language);
+#else
     strcpy(field->immediate.value, language);
+#endif
   }
 
   return 0;
@@ -717,7 +745,11 @@ int id3_field_setbinarydata(union id3_field *field,
   if (length == 0)
     mem = 0;
   else {
+#ifdef _MSC_VER
+    Newx(mem, length, id3_byte_t);
+#else
     mem = malloc(length);
+#endif
     if (mem == 0)
       return -1;
 

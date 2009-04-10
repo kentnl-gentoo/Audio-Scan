@@ -19,13 +19,17 @@
  * If you would like to negotiate alternate licensing terms, you may do
  * so by contacting: Underbit Technologies, Inc. <info@underbit.com>
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/id3tag.h 52632 2009-04-02T16:06:53.407795Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/id3tag.h 52746 2009-04-06T14:41:37.582495Z andy  $
  */
 
 # ifndef LIBID3TAG_ID3TAG_H
 # define LIBID3TAG_ID3TAG_H
 
+#ifdef _MSC_VER
+#include "../include/pstdint.h"
+#else
 #include <stdint.h>
+#endif
 
 # ifdef __cplusplus
 extern "C" {

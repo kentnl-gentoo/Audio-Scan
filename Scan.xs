@@ -4,15 +4,14 @@
 
 #include "ppport.h"
 
-#include "tagutils-common.c"
-
-#include "tagutils-mp3.c"
+#include "common.c"
+#include "mp3.c"
+#include "ogg.c"
+#include "asf.c"
 
 #ifdef HAVE_FLAC
-#include "tagutils-flac.c"
+#include "flac.c"
 #endif
-
-#include "tagutils-ogg.c"
 
 #define FILTER_TYPE_INFO 0x01
 #define FILTER_TYPE_TAGS 0x02
@@ -35,7 +34,7 @@ struct _types audio_types[] = {
 #ifdef HAVE_FLAC
   {"flc", {"flc", "flac", "fla", 0}},
 #endif
-  {"asf", {"wma", 0}},
+  {"asf", {"wma", "asf", "wmv", 0}},
   {0, {0, 0}}
 };
 
@@ -46,11 +45,24 @@ static taghandler taghandlers[] = {
 #ifdef HAVE_FLAC
   { "flc", get_flac_metadata, 0 },
 #endif
-  { "asf", 0, 0 },
+  { "asf", get_asf_metadata, 0 },
   { NULL, 0, 0 }
 };
 
 MODULE = Audio::Scan		PACKAGE = Audio::Scan
+
+int
+has_flac(void)
+CODE:
+{
+#ifdef HAVE_FLAC
+  RETVAL = 1;
+#else
+  RETVAL = 0;
+#endif
+}
+OUTPUT:
+  RETVAL
 
 HV *
 scan (char * /*klass*/, SV *path, ...)
@@ -78,7 +90,11 @@ CODE:
   suffix++;
   for (i=0; typeindex==-1 && audio_types[i].type; i++) {
     for (j=0; typeindex==-1 && audio_types[i].suffix[j]; j++) {
+#ifdef _MSC_VER
+      if (!stricmp(audio_types[i].suffix[j], suffix)) {
+#else
       if (!strcasecmp(audio_types[i].suffix[j], suffix)) {
+#endif
         typeindex = i;
         break;
       }

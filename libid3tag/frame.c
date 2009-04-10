@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 52637 2009-04-02T18:13:42.021323Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 52786 2009-04-07T15:38:04.236288Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -100,7 +100,12 @@ struct id3_frame *id3_frame_new(char const *id)
     }
   }
 
+#ifdef _MSC_VER
+  // XXX: Can't use Newx macro here
+  frame = safemalloc((MEM_SIZE)(sizeof(*frame) + frametype->nfields * sizeof(*frame->fields)));
+#else
   frame = malloc(sizeof(*frame) + frametype->nfields * sizeof(*frame->fields));
+#endif
   if (frame) {
     frame->id[0] = id[0];
     frame->id[1] = id[1];
@@ -210,7 +215,11 @@ struct id3_frame *unparseable(char const *id, id3_byte_t const **ptr,
   struct id3_frame *frame = 0;
   id3_byte_t *mem;
 
+#ifdef _MSC_VER
+  Newx(mem, length ? length : 1, id3_byte_t);
+#else
   mem = malloc(length ? length : 1);
+#endif
   if (mem == 0)
     goto fail;
 
@@ -414,7 +423,11 @@ struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
   /* undo frame encodings */
 
   if ((flags & ID3_FRAME_FLAG_UNSYNCHRONISATION) && end - data > 0) {
+#ifdef _MSC_VER
+    Newx(mem, end - data, id3_byte_t);
+#else
     mem = malloc(end - data);
+#endif
     if (mem == 0)
       goto fail;
 

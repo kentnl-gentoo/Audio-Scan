@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/parse.c 52632 2009-04-02T16:06:53.407795Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/parse.c 52786 2009-04-07T15:38:04.236288Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -125,7 +125,11 @@ id3_latin1_t *id3_parse_latin1(id3_byte_t const **ptr, id3_length_t length,
     terminated = 1;
   }
 
+#ifdef _MSC_VER
+  Newx(latin1, length + 1, id3_latin1_t);
+#else
   latin1 = malloc(length + 1);
+#endif
   if (latin1) {
     memcpy(latin1, *ptr, length);
     latin1[length] = 0;
@@ -186,10 +190,20 @@ id3_byte_t *id3_parse_binary(id3_byte_t const **ptr, id3_length_t length)
 {
   id3_byte_t *data;
 
-  if (length == 0)
+  if (length == 0) {
+#ifdef _MSC_VER
+    Newx(data, 1, id3_byte_t);
+    return data;
+#else
     return malloc(1);
+#endif
+  }
 
+#ifdef _MSC_VER
+  Newx(data, length, id3_byte_t);
+#else
   data = malloc(length);
+#endif
   if (data)
     memcpy(data, *ptr, length);
 

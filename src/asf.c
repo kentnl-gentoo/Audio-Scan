@@ -87,7 +87,7 @@ get_asf_metadata(char *file, HV *info, HV *tags)
     goto out;
   }
   
-  buffer_get(&asf_buf, &hdr.ID, 16);
+  buffer_get_guid(&asf_buf, &hdr.ID);
   
   if ( !IsEqualGUID(&hdr.ID, &ASF_Header_Object) ) {
     PerlIO_printf(PerlIO_stderr(), "Invalid ASF header: %s\n", file);
@@ -112,7 +112,7 @@ get_asf_metadata(char *file, HV *info, HV *tags)
       goto out;
     }
     
-    buffer_get(&asf_buf, &tmp.ID, 16);    
+    buffer_get_guid(&asf_buf, &tmp.ID);
     tmp.size = buffer_get_int64_le(&asf_buf);
     
     if ( !_check_buf(infile, &asf_buf, tmp.size - 24, ASF_BLOCK_SIZE) ) {
@@ -173,7 +173,7 @@ get_asf_metadata(char *file, HV *info, HV *tags)
     goto out;
   }
   
-  buffer_get(&asf_buf, &data.ID, 16);
+  buffer_get_guid(&asf_buf, &data.ID);
   
   if ( !IsEqualGUID(&data.ID, &ASF_Data) ) {
     PerlIO_printf(PerlIO_stderr(), "Invalid ASF file: %s (no Data object after Header)\n", file);
@@ -381,7 +381,7 @@ _parse_file_properties(Buffer *buf, HV *info, HV *tags)
   uint8_t broadcast;
   uint8_t seekable;
   
-  buffer_get(buf, &file_id, 16);
+  buffer_get_guid(buf, &file_id);
   my_hv_store( 
     info, "file_id", newSVpvf( "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
       file_id.l, file_id.w[0], file_id.w[1],
@@ -439,8 +439,8 @@ _parse_stream_properties(Buffer *buf, HV *info, HV *tags)
   uint16_t stream_number;
   Buffer type_data_buf;
   
-  buffer_get(buf, &stream_type, 16);
-  buffer_get(buf, &ec_type, 16);
+  buffer_get_guid(buf, &stream_type);
+  buffer_get_guid(buf, &ec_type);
   time_offset = buffer_get_int64_le(buf);
   type_data_len = buffer_get_int_le(buf);
   ec_data_len   = buffer_get_int_le(buf);
@@ -571,7 +571,7 @@ _parse_header_extension(Buffer *buf, uint64_t len, HV *info, HV *tags)
   DEBUG_TRACE("  size: %d\n", ext_size);
   
   while (ext_size > 0) {
-    buffer_get(buf, &hdr, 16);
+    buffer_get_guid(buf, &hdr);
     hdr_size = buffer_get_int64_le(buf);
     ext_size -= hdr_size;
     
@@ -826,7 +826,7 @@ _parse_advanced_mutual_exclusion(Buffer *buf, HV *info, HV *tags)
   SV *mutex_type_sv;
   AV *mutex_streams = newAV();
   
-  buffer_get(buf, &mutex_type, 16);
+  buffer_get_guid(buf, &mutex_type);
   count = buffer_get_short_le(buf);
   
   if ( IsEqualGUID(&mutex_type, &ASF_Mutex_Language) ) {
@@ -975,7 +975,7 @@ _parse_metadata_library(Buffer *buf, HV *info, HV *tags)
     }
     else if (data_type == TYPE_GUID) {
       GUID g;
-      buffer_get(buf, &g, 16);
+      buffer_get_guid(buf, &g);
       value = newSVpvf(
         "%08x-%04x-%04x-%02x%02x-%02x%02x%02x%02x%02x%02x",
         g.l, g.w[0], g.w[1],
@@ -1138,7 +1138,7 @@ _parse_index_objects(PerlIO *infile, int index_size, uint64_t audio_offset, Buff
       return 0;
     }
   
-    buffer_get(buf, &tmp, 16);    
+    buffer_get_guid(buf, &tmp);    
     size = buffer_get_int64_le(buf);
   
     if ( !_check_buf(infile, buf, size - 24, ASF_BLOCK_SIZE) ) {

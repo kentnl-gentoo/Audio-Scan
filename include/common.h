@@ -23,6 +23,18 @@
 # define DEBUG_TRACE(...)
 #endif
 
+#if __GNUC__ > 2 || (__GNUC__ == 2 && __GNUC_MINOR__ > 4)
+# define _PACKED __attribute((packed))
+#else
+# define _PACKED
+#endif
+
+ typedef struct _GUID {
+   uint32_t l;
+   uint16_t w[2];
+   uint8_t  b[8];
+ } _PACKED GUID;
+
 /* for PRIu64 */
 #ifdef _MSC_VER
 #include "pinttypes.h"

@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 104;
+use Test::More tests => 127;
 
 use Audio::Scan;
 use Encode;
@@ -205,6 +205,49 @@ use Encode;
     
     is( $info->{streams}->[1]->{stream_type}, 'ASF_Command_Media', 'Live stream metadata stream ok' );
 }
+
+# File with DRM, script commands, and 2 images
+{
+    my $s = Audio::Scan->scan( _f('drm.wma') );
+    
+    my $info = $s->{info};
+    my $tags = $s->{tags};
+    
+    is( $info->{streams}->[0]->{encrypted}, 1, 'DRM encrypted flag set ok' );
+    is( $info->{drm_key}, 'pMYQ3zAwEE+/lAEL5hP0Ug==', 'DRM key ok' );
+    is( $info->{drm_license_url}, 'http://switchboard.real.com/rhapsody/?cd=wmupgrade', 'DRM license URL ok' );
+    is( $info->{drm_protection_type}, 'DRM', 'DRM protection type ok' );
+    
+    is( ref $info->{script_types}, 'ARRAY', 'Script types ok' );
+    is( $info->{script_types}->[0], 'URL', 'Script type URL ok' );
+    is( $info->{script_types}->[1], 'FILENAME', 'Script type FILENAME ok' );
+    is( ref $info->{script_commands}, 'ARRAY', 'Script commands ok' );
+    is( $info->{script_commands}->[0]->{command}, 'http://www.microsoft.com/isapi/redir.dll?Prd=WMT4&Sbp=DRM&Plcid=0x0409&Pver=4.0&WMTFeature=DRM', 'Script command 1 ok' );
+    is( $info->{script_commands}->[0]->{time}, 1579, 'Script time 1 ok' );
+    is( $info->{script_commands}->[0]->{type}, 0, 'Script type 1 ok' );
+    is( $info->{script_commands}->[1]->{command}, '', 'Script command 2 ok' );
+    is( $info->{script_commands}->[1]->{time}, 1579, 'Script time 2 ok' );
+    is( $info->{script_commands}->[1]->{type}, 1, 'Script type 2 ok' );
+    
+    is( ref $tags->{'WM/Picture'}, 'ARRAY', 'WM/Picture array ok' );
+    is( $tags->{'WM/Picture'}->[0]->{description}, 'Large Cover Art', 'WM/Picture 1 description ok' );
+    is( length( $tags->{'WM/Picture'}->[0]->{image} ), 4644, 'WM/Picture 1 image ok' );
+    is( $tags->{'WM/Picture'}->[1]->{description}, 'Cover Art', 'WM/Picture 2 description ok' );
+    is( length( $tags->{'WM/Picture'}->[1]->{image} ), 2110, 'WM/Picture 2 image ok ');
+}
+
+# File with JFIF image type and MP3 codec
+{
+    my $s = Audio::Scan->scan( _f('jfif.wma') );
+    
+    my $info = $s->{info};
+    
+    is( $info->{streams}->[0]->{stream_type}, 'ASF_JFIF_Media', 'JFIF stream ok' );
+    is( $info->{streams}->[1]->{codec_id}, 85, 'MP3 codec ID ok' );
+    is( $info->{streams}->[0]->{width}, 320, 'JFIF width ok' );
+    is( $info->{streams}->[0]->{height}, 240, 'JFIF height ok' );
+}
+    
 
 sub _f {
     return catfile( $FindBin::Bin, 'asf', shift );

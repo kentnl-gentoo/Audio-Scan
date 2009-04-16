@@ -13,11 +13,12 @@ if ( $^O !~ /Win32/ ) {
     push @LIBS, '-lz';
 }
 
-my ($help, $flac_inc, $flac_lib);
+my ($help, $flac_inc, $flac_lib, $flac_static);
 my $result = GetOptions(
     "help|h"                 => \$help,
     "with-flac-includes=s"   => \$flac_inc,
     "with-flac-libs=s"       => \$flac_lib,
+    "with-flac-static"       => \$flac_static,
 );
 
 if ( $help || !$result ) {
@@ -29,6 +30,7 @@ Configure Audio::Scan module.
 Options:
      --with-flac-includes       Path to directory containing FLAC/all.h
      --with-flac-libs           Path to directory containing libFLAC
+     --with-flac-static         Statically link in libFLAC (requires libFLAC.a and libogg.a)
 
 END
 
@@ -46,25 +48,51 @@ if ( $^O =~ /Win32/ ) {
 
 # Look for libFLAC
 for my $incdir ( $flac_inc, @check ) {
-    if ( $incdir && -e catfile( $incdir, 'FLAC/all.h' ) ) {
-        $FLAC = 1;
-        $flac_inc = $incdir;
-
-        push @INC, '-I' . $flac_inc;
-
-        if ( $flac_lib ) {
-            push @LIBPATH, '-L' . $flac_lib;
+    if ( $incdir && -e catfile( $incdir, 'FLAC/export.h' ) ) {
+        # Check for a new enough version
+        my $current;
+        open my $fh, '<', catfile( $incdir, 'FLAC/export.h' );
+        while ( <$fh> ) {
+            if ( /FLAC_API_VERSION_CURRENT/ ) {
+                $current = 1;
+                last;
+            }
         }
+        close $fh;
 
-        push @LIBS, '-lFLAC';
-        last;
+        if ( $current ) {
+            $FLAC = 1;
+            $flac_inc = $incdir;
+
+            push @INC, '-I' . $flac_inc;
+
+            if ( $flac_lib ) {
+                push @LIBPATH, '-L' . $flac_lib;
+            }
+        
+            if ( $flac_static ) {
+                if ( $flac_lib ) {
+                    $MYEXTLIB .= $flac_lib . '/' . 'libFLAC$(LIB_EXT) ';
+                    $MYEXTLIB .= $flac_lib . '/' . 'libogg$(LIB_EXT) ';
+                }
+                else {
+                    $MYEXTLIB .= $flac_inc . '/../lib/libFLAC$(LIB_EXT) ';
+                    $MYEXTLIB .= $flac_inc . '/../lib/libogg$(LIB_EXT) ';
+                }
+            }
+            else {
+                push @LIBS, '-lFLAC';
+            }
+        
+            last;
+        }
     }
 }
 
 print "\n";
 print "Audio::Scan will be built with:\n\n";
 print "   MP3 support:     yes\n";
-print "  FLAC support:     " . ( $FLAC ? "yes ($flac_inc)" : "no, install libFLAC" ) . "\n";
+print "  FLAC support:     " . ( $FLAC ? "yes ($flac_inc)" : "no, install libFLAC 1.1.3+" ) . "\n";
 print "   OGG support:     yes\n";
 print "   ASF support:     yes\n";
 print "\n";
@@ -79,7 +107,7 @@ sub MY::postamble {
     my $postamble =<<'END';
 
 libid3tag/Makefile:
-	cd libid3tag && CC="$(CC)" CFLAGS="$(OPTIMIZE) $(CCFLAGS) $(CCCDLFLAGS)" ./configure --disable-dependency-tracking $(EXTRA_CONF)
+	cd libid3tag && CC="$(CC)" CFLAGS="$(OPTIMIZE) $(CCFLAGS) $(CCCDLFLAGS)" LDFLAGS="$(LDFLAGS)" ./configure --disable-dependency-tracking $(EXTRA_CONF)
 
 clean::
 	-cd libid3tag && make distclean
@@ -102,7 +130,7 @@ fixflac:
 END
     };
     
-    $MYEXTLIB = 'libid3tag/msvc++/Release/libid3tag.lib ';
+    $MYEXTLIB .= 'libid3tag/msvc++/Release/libid3tag.lib ';
     $MYEXTLIB .= '../zlib-1.2.3/projects/visualc6/Win32_LIB_Release/zlib.lib ';
     $MYEXTLIB .= '../flac-1.2.1/obj/release/lib/libFLAC_dynamic.lib ';
 }
@@ -114,7 +142,7 @@ else {
         push @LIBS, '-lid3tag';
     }
     else {
-        $MYEXTLIB = 'libid3tag/.libs/libid3tag$(LIB_EXT)';
+        $MYEXTLIB .= 'libid3tag/.libs/libid3tag$(LIB_EXT) ';
     }
 }
 

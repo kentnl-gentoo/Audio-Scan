@@ -52,6 +52,23 @@ METHODS
     Scans a filehandle. $type is the type of file to scan as, i.e. "mp3" or
     "ogg". Note that FLAC does not support reading from a filehandle.
 
+  find_frame( $path, $offset )
+    Returns the byte offset to the first audio frame starting from $offset.
+
+    The offset value is different depending on the file type:
+
+    Ogg Offset is the byte offset to start searching from. The byte offset
+        to the first Ogg packet past this point will be returned.
+
+    ASF Offset is a timestamp in milliseconds. The byte offset to the ASF
+        data packet containing this timestamp will be returned.
+
+    MP3, FLAC
+        Not yet supported by find_frame.
+
+  find_frame_fh( $type => $fh, $offset )
+    Same as find_frame, but with a filehandle.
+
   has_flac()
     Returns 1 if FLAC support was compiled in, or 0 if not.
 
@@ -224,6 +241,7 @@ ASF (Windows Media Audio/Video)
         index_offsets (byte offsets for each second of audio, per stream. Useful for seeking)
         index_specifiers (indicates which stream a given index_offset points to)
         language_list (array of languages referenced by the file's metadata)
+        lossless (boolean)
         max_bitrate
         max_packet_size
         min_packet_size

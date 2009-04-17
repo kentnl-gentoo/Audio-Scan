@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 130;
+use Test::More tests => 138;
 
 use Audio::Scan;
 use Encode;
@@ -14,7 +14,7 @@ use Encode;
     my $info = $s->{info};
     my $tags = $s->{tags};
     
-    is( $info->{audio_offset}, 5111, 'Audio offset ok' );
+    is( $info->{audio_offset}, 5161, 'Audio offset ok' );
     is( $info->{broadcast}, 0, 'Broadcast not set ok' );
     is( ref $info->{codec_list}, 'ARRAY', 'Codec list ok' );
     is( $info->{codec_list}->[0]->{description}, ' 32 kbps, 22 kHz, stereo 2-pass CBR', 'Codec description ok' );
@@ -88,8 +88,8 @@ use Encode;
     is( $info->{index_blocks}->[1], 0, 'Index block 2 ok' );
     is( $info->{index_entry_interval}, 1000, 'Index entry interval ok' );
     is( ref $info->{index_offsets}, 'ARRAY', 'Index offsets ok' );
-    is( $info->{index_offsets}->[0]->[4], 11811, 'Index offset stream 1 ok' );
-    is( $info->{index_offsets}->[1]->[3], 7811, 'Index offset stream 2 ok' );
+    is( $info->{index_offsets}->[0]->[4], 11861, 'Index offset stream 1 ok' );
+    is( $info->{index_offsets}->[1]->[3], 7861, 'Index offset stream 2 ok' );
     is( ref $info->{index_specifiers}, 'ARRAY', 'Index specifiers ok' );
     is( $info->{index_specifiers}->[0], 1, 'Index specifier stream 1 ok' );
     is( $info->{index_specifiers}->[1], 2, 'Index specifier stream 2 ok' );
@@ -146,6 +146,7 @@ use Encode;
     is( $info->{codec_list}->[0]->{name}, 'Windows Media Audio 9.2 Lossless', 'WMA Lossless ok' );
     is( $info->{streams}->[0]->{codec_id}, 0x0163, 'WMA Lossless codec ID ok' );
     is( $info->{streams}->[0]->{avg_bitrate}, 607494, 'WMA Lossless average bitrate ok' );
+    is( $info->{lossless}, 1, 'WMA Lossless flag ok' );
 }
 
 # WMA Voice file with duplicate tags
@@ -259,10 +260,56 @@ use Encode;
     my $info = $s->{info};
     my $tags = $s->{tags};
     
-    is( $info->{audio_offset}, 5111, 'Audio offset ok via filehandle' );
+    is( $info->{audio_offset}, 5161, 'Audio offset ok via filehandle' );
     is( $tags->{Author}, 'Author String', 'Author tag ok via filehandle' );
     
     close $fh;
+}
+
+# Find frame MBR
+{
+    my $offset = Audio::Scan->find_frame( _f('wma92-mbr.wma'), 650 );
+    
+    is( $offset, 6261, 'Find frame MBR ok' );
+    
+    # Wrong first packet guess
+    $offset = Audio::Scan->find_frame( _f('wma92-mbr.wma'), 1300 );
+    
+    is( $offset, 7861, 'Find frame MBR with retry ok' );
+}
+
+{
+    open my $fh, '<', _f('wma92-mbr.wma');
+    my $offset = Audio::Scan->find_frame_fh( asf => $fh, 1025 );
+    close $fh;
+    
+    is( $offset, 7061, 'Find frame MBR via filehandle ok' );
+}
+
+# Find frame VBR
+{
+    my $offset = Audio::Scan->find_frame( _f('wma92-vbr.wma'), 2200 );
+    
+    is( $offset, -1, 'Find frame VBR out of bounds ok' );
+    
+    $offset = Audio::Scan->find_frame( _f('wma92-vbr.wma'), 800 );
+    
+    is( $offset, 7564, 'Find frame VBR ok' );
+}
+
+{
+    open my $fh, '<', _f('wma92-vbr.wma');
+    my $offset = Audio::Scan->find_frame_fh( asf => $fh, 1000 );
+    close $fh;
+    
+    is( $offset, 9825, 'Find frame VBR via filehandle ok' );
+}
+
+# Find frame CBR
+{
+    my $offset = Audio::Scan->find_frame( _f('wma92-32k.wma'), 1360 );
+    
+    is( $offset, 9715, 'Find frame CBR ok' );
 }
 
 sub _f {

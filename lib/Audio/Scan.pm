@@ -3,7 +3,7 @@ package Audio::Scan;
 use 5.008008;
 use strict;
 
-our $VERSION = '0.06';
+our $VERSION = '0.07';
 
 require XSLoader;
 XSLoader::load('Audio::Scan', $VERSION);
@@ -82,6 +82,34 @@ If you only need the tags and don't care about the metadata, use this method.
 
 Scans a filehandle. $type is the type of file to scan as, i.e. "mp3" or "ogg".
 Note that FLAC does not support reading from a filehandle.
+
+=head2 find_frame( $path, $offset )
+
+Returns the byte offset to the first audio frame starting from $offset.
+
+The offset value is different depending on the file type:
+
+=over 4
+
+=item Ogg
+
+Offset is the byte offset to start searching from.  The byte offset to the first
+Ogg packet past this point will be returned.
+
+=item ASF
+
+Offset is a timestamp in milliseconds.  The byte offset to the ASF data packet
+containing this timestamp will be returned.
+
+=item MP3, FLAC
+
+Not yet supported by find_frame.
+
+=back
+
+=head2 find_frame_fh( $type => $fh, $offset )
+
+Same as L<find_frame>, but with a filehandle.
 
 =head2 has_flac()
 
@@ -264,6 +292,7 @@ want to find out more about any of these values.
     index_offsets (byte offsets for each second of audio, per stream. Useful for seeking)
     index_specifiers (indicates which stream a given index_offset points to)
     language_list (array of languages referenced by the file's metadata)
+    lossless (boolean)
     max_bitrate
     max_packet_size
     min_packet_size

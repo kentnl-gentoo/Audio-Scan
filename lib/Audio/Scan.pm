@@ -3,7 +3,7 @@ package Audio::Scan;
 use 5.008008;
 use strict;
 
-our $VERSION = '0.07';
+our $VERSION = '0.08';
 
 require XSLoader;
 XSLoader::load('Audio::Scan', $VERSION);
@@ -91,17 +91,17 @@ The offset value is different depending on the file type:
 
 =over 4
 
-=item Ogg
+=item MP3, Ogg
 
 Offset is the byte offset to start searching from.  The byte offset to the first
-Ogg packet past this point will be returned.
+audio packet/frame past this point will be returned.
 
 =item ASF
 
 Offset is a timestamp in milliseconds.  The byte offset to the ASF data packet
 containing this timestamp will be returned.
 
-=item MP3, FLAC
+=item FLAC
 
 Not yet supported by find_frame.
 
@@ -364,6 +364,10 @@ more features.
 
 The source to the original Netgear C scanner for SqueezeCenter is located
 at L<http://svn.slimdevices.com/repos/slim/7.3/trunk/platforms/readynas/contrib/scanner>
+
+=head1 SEE ALSO
+
+ASF Spec L<http://www.microsoft.com/windows/windowsmedia/forpros/format/asfspec.aspx>
 
 =head1 AUTHORS
 

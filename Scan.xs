@@ -5,9 +5,11 @@
 #include "ppport.h"
 
 #include "common.c"
+#include "id3.c"
 #include "mp3.c"
 #include "ogg.c"
 #include "asf.c"
+#include "wav.c"
 
 #ifdef HAVE_FLAC
 #include "flac.c"
@@ -36,6 +38,7 @@ struct _types audio_types[] = {
   {"flc", {"flc", "flac", "fla", 0}},
 #endif
   {"asf", {"wma", "asf", "wmv", 0}},
+  {"wav", {"wav", 0}},
   {0, {0, 0}}
 };
 
@@ -44,9 +47,10 @@ static taghandler taghandlers[] = {
   { "mp3", get_mp3tags, get_mp3fileinfo, mp3_find_frame },
   { "ogg", get_ogg_metadata, 0, ogg_find_frame },
 #ifdef HAVE_FLAC
-  { "flc", get_flac_metadata, 0, 0 },
+  { "flc", get_flac_metadata, 0, flac_find_frame },
 #endif
   { "asf", get_asf_metadata, 0, asf_find_frame },
+  { "wav", get_wav_metadata, 0, 0 },
   { NULL, 0, 0 }
 };
 

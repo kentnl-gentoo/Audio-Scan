@@ -23,7 +23,7 @@
 static int
 get_mp3tags(PerlIO *infile, char *file, HV *info, HV *tags)
 {
-  return parse_id3(infile, file, info, tags, ID3_FILE_MODE_READONLY);
+  return parse_id3(infile, file, info, tags, 0);
 }
 
 // _decode_mp3_frame
@@ -155,7 +155,7 @@ static short _mp3_get_average_bitrate(PerlIO *infile)
   unsigned char *buf_ptr;
   unsigned int buf_size = 0;
   
-  Newxz(buf, WANTED_FOR_AVG, char);
+  Newxz(buf, WANTED_FOR_AVG, unsigned char);
   buf_ptr = buf;
 
   // Seek to middle of file
@@ -389,7 +389,7 @@ get_mp3fileinfo(PerlIO *infile, char *file, HV *info)
   int found;
   int err = 0;
   
-  Newxz(buf, BLOCK_SIZE, char);
+  Newxz(buf, BLOCK_SIZE, unsigned char);
   buf_ptr = buf;
 
   memset((void*)&fi, 0, sizeof(fi));

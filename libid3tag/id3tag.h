@@ -19,7 +19,7 @@
  * If you would like to negotiate alternate licensing terms, you may do
  * so by contacting: Underbit Technologies, Inc. <info@underbit.com>
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/id3tag.h 53929 2009-04-22T01:17:21.797765Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/id3tag.h 54044 2009-04-23T15:40:38.967842Z andy  $
  */
 
 # ifndef LIBID3TAG_ID3TAG_H
@@ -252,7 +252,7 @@ enum id3_file_mode {
 };
 
 struct id3_file *id3_file_open(char const *, enum id3_file_mode);
-struct id3_file *id3_file_fdopen(int, enum id3_file_mode);
+struct id3_file *id3_file_fdopen(int, enum id3_file_mode, uint32_t seek);
 int id3_file_close(struct id3_file *);
 
 struct id3_tag *id3_file_tag(struct id3_file const *);

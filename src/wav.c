@@ -109,7 +109,7 @@ _parse_wav(PerlIO *infile, Buffer *buf, char *file, uint32_t file_size, HV *info
       if ( !my_hv_fetch( info, "song_length_ms" ) ) {
         bitrate = my_hv_fetch( info, "bitrate" );
         if (bitrate != NULL) {
-          my_hv_store( info, "song_length_ms", newSVuv( (chunk_size * 1000) / (SvIV(*bitrate) / 8) ) );
+          my_hv_store( info, "song_length_ms", newSVuv( (chunk_size / (SvIV(*bitrate) / 8.)) * 1000 ) );
         }
       }
       
@@ -131,10 +131,8 @@ _parse_wav(PerlIO *infile, Buffer *buf, char *file, uint32_t file_size, HV *info
       ) {
         my_hv_store( info, "id3_version", newSVpvf( "ID3v2.%d.%d", bptr[3], bptr[4] ) );
         
-        // Seek to start of ID3 and pass it off to libid3tag
-        PerlIO_seek(infile, offset, SEEK_SET);
-        
-        parse_id3(infile, file, info, tags, ID3_FILE_MODE_READONLY_NOSEEK);
+        // Start parsing ID3 from offset
+        parse_id3(infile, file, info, tags, offset);
       }
       
       // Seek past ID3 and clear buffer

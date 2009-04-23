@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/file.c 53929 2009-04-22T01:17:21.797765Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/file.c 54044 2009-04-23T15:40:38.967842Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -477,7 +477,7 @@ struct id3_file *id3_file_open(char const *path, enum id3_file_mode mode)
  * NAME:	file->fdopen()
  * DESCRIPTION:	open a file using an existing file descriptor
  */
-struct id3_file *id3_file_fdopen(int fd, enum id3_file_mode mode)
+struct id3_file *id3_file_fdopen(int fd, enum id3_file_mode mode, uint32_t seek)
 {
 # if 1 || defined(HAVE_UNISTD_H)
   FILE *iofile;
@@ -486,6 +486,11 @@ struct id3_file *id3_file_fdopen(int fd, enum id3_file_mode mode)
   iofile = fdopen(fd, (mode == ID3_FILE_MODE_READWRITE) ? "r+b" : "rb");
   if (iofile == 0)
     return 0;
+  
+  // Must seek after fdopen, as PerlIO buffering can get in the way
+  if (seek) {
+    fseek(iofile, seek, SEEK_SET);
+  }
 
   file = new_file(iofile, mode, 0);
   if (file == 0) {

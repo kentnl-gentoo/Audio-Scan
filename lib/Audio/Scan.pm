@@ -3,7 +3,7 @@ package Audio::Scan;
 use 5.008008;
 use strict;
 
-our $VERSION = '0.12';
+our $VERSION = '0.13';
 
 require XSLoader;
 XSLoader::load('Audio::Scan', $VERSION);
@@ -28,7 +28,7 @@ __END__
 
 =head1 NAME
 
-Audio::Scan - Fast C parser for MP3, Ogg Vorbis, FLAC, ASF, WAV
+Audio::Scan - Fast C parser for MP3, Ogg Vorbis, FLAC, ASF, WAV, AIFF, Musepack, Monkey's Audio
 
 =head1 SYNOPSIS
 
@@ -51,8 +51,8 @@ Audio::Scan - Fast C parser for MP3, Ogg Vorbis, FLAC, ASF, WAV
 
 Audio::Scan is a C-based scanner for audio file metadata and tag information. It currently
 supports MP3 via an included version of libid3tag, Ogg Vorbis, FLAC (if libFLAC is
-installed), ASF, and WAV.  A future release will add support for AAC, APE, AIFF, and probably
-others.
+installed), ASF, WAV, AIFF, Musepack, and Monkey's Audio. A future release will add support
+for AAC.
 
 See below for specific details about each file format.
 
@@ -67,7 +67,10 @@ determined by the file's extension.  Supported extensions are:
     Ogg:  ogg, oga
     FLAC: flc, flac, fla
     ASF:  wma, wmv, asf
+    Musepack:  mpc, mpp, mp+
+    Monkey's Audio:  ape, apl
     WAV: wav
+    AIFF: aiff, aif
 
 This method returns a hashref containing two other hashrefs: info and tags.  The
 contents of the info and tag hashes vary depending on file format, see below for details.
@@ -103,7 +106,7 @@ audio packet/frame past this point will be returned.
 Offset is a timestamp in milliseconds.  The byte offset to the ASF data packet
 containing this timestamp will be returned.
 
-=item WAV
+=item WAV, AIFF, Musepack, Monkey's Audio
 
 Not supported by find_frame.
 
@@ -362,7 +365,7 @@ Pictures are returned as a hash with the following keys:
 
 =head2 INFO
 
-The following metadata about a file is returned.
+The following metadata about a file may be returned.
 
     audio_offset
     bitrate (in bps)
@@ -407,6 +410,67 @@ found in a LIST block may include these and others:
     ITRK - Track
 
 ID3v2 tags can also be embedded within WAV files.  These are returned exactly as for MP3 files.
+
+=head1 AIFF
+
+=head2 INFO
+
+The following metadata about a file may be returned.
+
+    audio_offset
+    bitrate (in bps)
+    bits_per_sample
+    block_align
+    channels
+    compression_name (if AIFC)
+    compression_type (if AIFC)
+    file_size
+    id3_version (if an ID3v2 tag is found)
+    samplerate (in kHz)
+    song_length_ms
+
+=head2 TAGS
+
+ID3v2 tags can be embedded within AIFF files.  These are returned exactly as for MP3 files.
+
+=head1 MONKEY'S AUDIO (APE)
+
+=head2 INFO
+
+The following metadata about a file may be returned.
+
+    bitrate (in bps)
+    channels
+    compression
+    file_size
+    samplerate (in kHz)
+    song_length_ms
+    version
+
+=head2 TAGS
+
+APEv2 tags are returned as a hash of key/value pairs.
+
+=head1 MUSEPACK
+
+=head2 INFO
+
+The following metadata about a file may be returned.
+
+    audio_offset
+    bitrate (in bps)
+    channels
+    encoder
+    file_size
+    profile
+    samplerate (in kHz)
+    song_length_ms
+
+=head2 TAGS
+
+Musepack uses APEv2 tags.  They are returned as a hash of key/value pairs.
+
+=head1 
 
 =head1 THANKS
 

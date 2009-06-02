@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 52786 2009-04-07T15:38:04.236288Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 55330 2009-06-02T15:04:01.028680Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -380,6 +380,14 @@ struct id3_frame *id3_frame_parse(id3_byte_t const **ptr, id3_length_t length,
     *ptr += 4;
     size  = id3_parse_syncsafe(ptr, 4);
     flags = id3_parse_uint(ptr, 2);
+    
+    // iTunes writes non-syncsafe length integers, check for this here
+    *ptr -= 6;
+    if ( id3_parse_uint(ptr, 4) & 0x80 ) {
+      *ptr -= 4;
+      size = id3_parse_uint(ptr, 4);
+    }
+    *ptr += 2;
 
     if (size > end - *ptr)
       goto fail;

@@ -1,8 +1,14 @@
 Revision history for Audio::Scan
 
+0.16    2009-06-04 15:45:00
+        - Fixed parsing of MPEG-4 files where mdat occurs before moov.
+        - Bug 12250, Added handling for invalid field lengths in WAV LIST INFO
+          chunks.
+        - Bug 12242, (libid3tag) Fixed broken parsing of ID3v2.2 PIC frames.
+
 0.15    2009-06-02 16:30:00
-        - Bug 12224, (libid3tag) Support broken iTunes v2.4 lengths that are not
-          sync-safe.
+        - Bug 12224, (libid3tag) Added support for broken iTunes v2.4 lengths that
+          are not sync-safe.
         - Bug 12212, Fixed infinite loop during MP3 bitrate calculation if tag size
           is very large compared to the audio size.
 

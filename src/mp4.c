@@ -169,7 +169,7 @@ mp4_find_frame(PerlIO *infile, char *file, int offset)
   }
   
   if (file_offset > mp4->audio_offset + mp4->audio_size) {
-    PerlIO_printf(PerlIO_stderr(), "find_frame: file offset out of range (%d > %d)\n", file_offset, mp4->audio_offset + mp4->audio_size);
+    PerlIO_printf(PerlIO_stderr(), "find_frame: file offset out of range (%d > %lld)\n", file_offset, mp4->audio_offset + mp4->audio_size);
     return -1;
   }
   
@@ -956,6 +956,10 @@ _mp4_parse_meta(mp4info *mp4)
   }
   
   // Skip rest of hdlr
+  if ( !_check_buf(mp4->infile, mp4->buf, hdlr_size - 8, MP4_BLOCK_SIZE) ) {
+    return 0;
+  }
+  
   buffer_consume(mp4->buf, hdlr_size - 8);  
   
   return 12 + hdlr_size - 8;

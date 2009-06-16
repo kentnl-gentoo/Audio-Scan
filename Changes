@@ -1,5 +1,12 @@
 Revision history for Audio::Scan
 
+0.20    2009-06-16 15:00:00
+        - Bug 12168, fixed Vorbis calculation of bitrate and duration in certain
+          files.
+        - Bug 12326, fixed bug in scanning MP4 meta box.
+        - Bug 12152, added support for APEv1 tags.
+        - Fixed some APE test failures that happened on some platforms.
+
 0.19    2009-06-15 15:35:00
         - MP4: find_frame support.
         - MP4: Added leading_mdat flag for MP4 files where mdat precedes

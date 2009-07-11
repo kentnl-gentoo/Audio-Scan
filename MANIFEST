@@ -160,6 +160,7 @@ t/flac/picture.flac
 t/flac/test.flac
 t/mac/apev1.ape
 t/mac/apev2.ape
+t/mp3/ape-no-v1.mp3
 t/mp3/bug5686/latin/good.mp3
 t/mp3/bug5686/utf/invalid.mp3
 t/mp3/gentoo-bug-210564.mp3
@@ -214,6 +215,7 @@ t/mp4/leading-mdat.m4a
 t/musepack/apev2.mpc
 t/ogg/bug1155-1.ogg
 t/ogg/bug1155-2.ogg
+t/ogg/bug12615-aotuv.ogg
 t/ogg/bug803.ogg
 t/ogg/bug905.ogg
 t/ogg/empty.ogg

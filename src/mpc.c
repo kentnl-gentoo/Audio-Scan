@@ -36,7 +36,10 @@
 
 #include "mpc.h"
 
-#define MPC_HEADER_SIZE 32
+#define MPC_BLOCK_SIZE 1024
+#define MPC_OLD_GAIN_REF 64.82
+
+const int32_t samplefreqs[4] = { 44100, 48000, 37800, 32000 };
 
 // profile is 0...15, where 7...13 is used
 static const char *
@@ -44,30 +47,159 @@ _mpc_profile_string(uint32_t profile)
 {
   static const char na[] = "n.a.";
   static const char *names[] = {
-    na, "'Unstable/Experimental'", na, na,
-    na, "'quality 0'", "'quality 1'", "'Telephone'",
-    "'Thumb'", "'Radio'", "'Standard'", "'Xtreme'",
-    "'Insane'", "'BrainDead'", "'quality 9'", "'quality 10'"
+    na,
+    "Unstable/Experimental",
+    na,
+    na,
+    na,
+    "below Telephone (q=0)",
+    "below Telephone (q=1)",
+    "Telephone (q=2)",
+    "Thumb (q=3)",
+    "Radio (q=4)",
+    "Standard (q=5)",
+    "Extreme (q=6)",
+    "Insane (q=7)",
+    "BrainDead (q=8)",
+    "above BrainDead (q=9)",
+    "above BrainDead (q=10)"
   };
 
   return profile >= sizeof(names) / sizeof(*names) ? na : names[profile];
 }
 
-// not yet implemented
-static int32_t
-_mpc_read_header_sv8(mpc_streaminfo * si, PerlIO *infile)
+unsigned int
+_mpc_bits_get_size(Buffer *buf, uint64_t *p_size)
 {
-  (void) si;
-  (void) infile;
+	unsigned char tmp;
+	uint64_t size = 0;
+	unsigned int ret = 0;
+
+	do {
+		tmp = buffer_get_char(buf);
+		size = (size << 7) | (tmp & 0x7F);
+		ret++;
+	} while((tmp & 0x80));
+
+	*p_size = size;
+	return ret;
+}
+
+static void
+_mpc_get_encoder_string(mpc_streaminfo* si)
+{
+	int ver = si->encoder_version;
+	if (si->stream_version >= 8)
+		ver = (si->encoder_version >> 24) * 100 + ((si->encoder_version >> 16) & 0xFF);
+	if (ver <= 116) {
+		if (ver == 0) {
+			sprintf(si->encoder, "Buschmann 1.7.0...9, Klemm 0.90...1.05");
+		} else {
+			switch (ver % 10) {
+				case 0:
+					sprintf(si->encoder, "Release %u.%u", ver / 100,
+							ver / 10 % 10);
+					break;
+				case 2: case 4: case 6: case 8:
+					sprintf(si->encoder, "Beta %u.%02u", ver / 100,
+							ver % 100);
+					break;
+				default:
+					sprintf(si->encoder, "--Alpha-- %u.%02u",
+							ver / 100, ver % 100);
+					break;
+			}
+		}
+	} else {
+		int major = si->encoder_version >> 24;
+		int minor = (si->encoder_version >> 16) & 0xFF;
+		int build = (si->encoder_version >> 8) & 0xFF;
+		char * tmp = "--Stable--";
+
+		if (minor & 1)
+			tmp = "--Unstable--";
+
+		sprintf(si->encoder, "%s %u.%u.%u", tmp, major, minor, build);
+	}
+}
+
+static int32_t
+_mpc_read_header_sv8(mpc_streaminfo *si)
+{
+  unsigned char *bptr = buffer_ptr(si->buf);
+  uint64_t size;
+  
+  while ( memcmp(bptr, "AP", 2) != 0 ) { // scan all blocks until audio
+    buffer_consume(si->buf, 2);
+    
+    _mpc_bits_get_size(si->buf, &size);
+    size -= 3;
+    
+    DEBUG_TRACE("%c%c block, size %d\n", bptr[0], bptr[1], size);
+    
+    if ( !_check_buf(si->infile, si->buf, size, MPC_BLOCK_SIZE) ) {
+      return -1;
+    }
+    
+    if (memcmp(bptr, "SH", 2) == 0) {
+      // Skip CRC
+      buffer_consume(si->buf, 4);
+      
+      si->stream_version = buffer_get_char(si->buf);
+      _mpc_bits_get_size(si->buf, &si->pcm_samples);
+      _mpc_bits_get_size(si->buf, &si->beg_silence);
+      
+      si->is_true_gapless = 1;
+      
+      bptr = buffer_ptr(si->buf);
+      si->sample_freq = samplefreqs[ (bptr[0] & 0xE0) >> 5 ];
+      si->max_band = (bptr[0] & 0x1F) + 1;
+      si->channels = ( (bptr[1] & 0xF0) >> 4 ) + 1;
+      si->ms = (bptr[1] & 0x8) >> 3;
+      si->block_pwr = (bptr[1] & 0x7) * 2;
+      buffer_consume(si->buf, 2);
+    }
+    else if (memcmp(bptr, "RG", 2) == 0) {
+      // Check version
+      if ( buffer_get_char(si->buf) != 1 ) {
+        // Skip
+        buffer_consume(si->buf, size - 1);
+      }
+      else {
+        si->gain_title = buffer_get_short(si->buf);
+        si->peak_title = buffer_get_short(si->buf);
+        si->gain_album = buffer_get_short(si->buf);
+        si->peak_album = buffer_get_short(si->buf);
+      }      
+    }
+    else if (memcmp(bptr, "EI", 2) == 0) {
+      bptr = buffer_ptr(si->buf);
+      
+      si->fprofile = ((bptr[0] & 0xFE) >> 1) / 8.;
+      si->profile_name = _mpc_profile_string((uint32_t)si->fprofile);
+      buffer_consume(si->buf, 1);
+      
+      si->encoder_version = buffer_get_char(si->buf) << 24; // major
+      si->encoder_version |= buffer_get_char(si->buf) << 16; // minor
+      si->encoder_version |= buffer_get_char(si->buf) << 8; // build
+      DEBUG_TRACE("ver: %d\n", si->encoder_version);
+      
+      _mpc_get_encoder_string(si);
+    }
+    else {
+      break;
+    }
+    
+    bptr = buffer_ptr(si->buf);
+  }
+  
   return 0;
 }
 
 static int32_t
-_mpc_read_header_sv7(mpc_streaminfo * si, uint32_t header[8])
+_mpc_read_header_sv7(mpc_streaminfo *si)
 {
-  const int32_t samplefreqs[4] = { 44100, 48000, 37800, 32000 };
-
-  uint16_t estimated_peak_title = 0;
+  unsigned char *bptr;
 
   // Update (si->stream_version);
   if (si->stream_version > 0x71) {
@@ -75,95 +207,56 @@ _mpc_read_header_sv7(mpc_streaminfo * si, uint32_t header[8])
   }
 
   si->bitrate            = 0;
-  si->frames             = header[1];
-  si->is                 = 0;
-  si->ms                 = (header[2] >> 30) & 0x0001;
-  si->max_band           = (header[2] >> 24) & 0x003F;
+  si->frames             = buffer_get_int_le(si->buf);
+  
+  bptr = buffer_ptr(si->buf);
+  si->is                 = (bptr[3] >> 7) & 0x1;
+  si->ms                 = (bptr[3] >> 6) & 0x1;
+  si->max_band           = bptr[3] & 0x3F;
+   
   si->block_size         = 1;
-  si->profile            = (header[2] << 8) >> 28;
+  si->profile            = (bptr[2] >> 4) & 0xF;
   si->profile_name       = _mpc_profile_string(si->profile);
-  si->sample_freq        = samplefreqs[(header[2] >> 16) & 0x0003];
-  estimated_peak_title   = (uint16_t) (header[2] & 0xFFFF);   // read the ReplayGain data
-  si->gain_title         = (uint16_t) ((header[3] >> 16) & 0xFFFF);
-  si->peak_title         = (uint16_t) (header[3] & 0xFFFF);
-  si->gain_album         = (uint16_t) ((header[4] >> 16) & 0xFFFF);
-  si->peak_album         = (uint16_t) (header[4] & 0xFFFF);
-  si->is_true_gapless    = (header[5] >> 31) & 0x0001; // true gapless: used?
-  si->last_frame_samples = (header[5] >> 20) & 0x07FF;  // true gapless: valid samples for last frame
-  si->encoder_version    = (header[6] >> 24) & 0x00FF;
+  // skip Link
+  si->sample_freq        = samplefreqs[bptr[2] & 0x3];
+  // skip MaxLevel
+  buffer_consume(si->buf, 4);
+  
+  si->peak_title         = buffer_get_short_le(si->buf);
+  si->gain_title         = buffer_get_short_le(si->buf);
+  
+  si->peak_album         = buffer_get_short_le(si->buf);
+  si->gain_album         = buffer_get_short_le(si->buf);
+  
+  // convert gain info
+  if (si->gain_title != 0) {
+    int tmp = (int)((MPC_OLD_GAIN_REF - (int16_t)si->gain_title / 100.) * 256. + .5);
+    if (tmp >= (1 << 16) || tmp < 0) tmp = 0;
+    si->gain_title = (int16_t)tmp;
+  }
+  
+  if (si->gain_album != 0) {
+    int tmp = (int)((MPC_OLD_GAIN_REF - (int16_t)si->gain_album / 100.) * 256. + .5);
+    if (tmp >= (1 << 16) || tmp < 0) tmp = 0;
+    si->gain_album = (int16_t)tmp;
+  }
+  
+  if (si->peak_title != 0)
+    si->peak_title = (uint16_t) (log10(si->peak_title) * 20 * 256 + .5);
+
+  if (si->peak_album != 0)
+    si->peak_album = (uint16_t) (log10(si->peak_album) * 20 * 256 + .5);
+  
+  bptr = buffer_ptr(si->buf);
+  si->is_true_gapless    = (bptr[3] >> 7) & 0x1;
+  si->last_frame_samples = ((bptr[3] >> 1) & 0x7F) | ((bptr[2] >> 4) & 0xF);  // true gapless: valid samples for last frame
+  buffer_consume(si->buf, 4);
+  
+  bptr = buffer_ptr(si->buf);
+  si->encoder_version    = bptr[3];
   si->channels           = 2;
 
-  if (si->encoder_version == 0) {
-
-    sprintf(si->encoder, "Buschmann 1.7.0...9, Klemm 0.90...1.05");
-
-  } else {
-    switch (si->encoder_version % 10) {
-    case 0:
-      sprintf(si->encoder, "Release %u.%u", si->encoder_version / 100, si->encoder_version / 10 % 10);
-      break;
-    case 2:
-    case 4:
-    case 6:
-    case 8:
-      sprintf(si->encoder, "Beta %u.%02u", si->encoder_version / 100, si->encoder_version % 100);
-      break;
-    default:
-      sprintf(si->encoder, "--Alpha-- %u.%02u", si->encoder_version / 100, si->encoder_version % 100);
-      break;
-    }
-  }
-
-  return 0;
-}
-
-static int32_t
-_mpc_read_header_sv6(mpc_streaminfo * si, uint32_t header[8])
-{
-  si->bitrate             = (header[0] >> 23) & 0x01FF;   // read the file-header (SV6 and below)
-  si->is                  = (header[0] >> 22) & 0x0001;
-  si->ms                  = (header[0] >> 21) & 0x0001;
-  si->stream_version      = (header[0] >> 11) & 0x03FF;
-  si->max_band            = (header[0] >> 6) & 0x001F;
-  si->block_size          = (header[0]) & 0x003F;
-  si->profile             = 0;
-  si->profile_name        = _mpc_profile_string((uint32_t) (-1));
-  si->last_frame_samples  = 0;
-  si->is_true_gapless     = 0;
-  si->encoder_version     = 0;
-  si->encoder[0]          = '\0';
-  si->sample_freq         = 44100;     // AB: used by all files up to SV7
-  si->channels            = 2;
-
-  // Not supported
-  si->gain_title          = 0;
-  si->peak_title          = 0;
-  si->gain_album          = 0;
-  si->peak_album          = 0;
-
-  if (si->stream_version >= 5) {
-    si->frames = header[1]; // 32 bit
-  } else {
-    si->frames = (header[1] >> 16); // 16 bit
-  }
-
-  if (si->stream_version == 7)
-    return -1;  // are there any unsupported parameters used?
-
-  if (si->bitrate != 0)
-    return -2;
-
-  if (si->is != 0)
-    return -3;
-
-  if (si->block_size != 1)
-    return -4;
-
-  if (si->stream_version < 6) // Bugfix: last frame was invalid for up to SV5
-    si->frames -= 1;
-
-  if (si->stream_version < 4 || si->stream_version > 7)
-    return -5;
+  _mpc_get_encoder_string(si);
 
   return 0;
 }
@@ -171,75 +264,79 @@ _mpc_read_header_sv6(mpc_streaminfo * si, uint32_t header[8])
 static int
 get_mpcfileinfo(PerlIO *infile, char *file, HV *info)
 {
-  uint32_t header[8];
+  Buffer buf;
   int32_t ret = 0;
+  unsigned char *bptr;
 
   mpc_streaminfo *si;
 
   Newxz(si, sizeof(mpc_streaminfo), mpc_streaminfo);
+  buffer_init(&buf, MPC_BLOCK_SIZE);
+  
+  si->buf    = &buf;
+  si->infile = infile;
 
   // get header position
   if ((si->header_position = skip_id3v2(infile)) < 0) {
     PerlIO_printf(PerlIO_stderr(), "Musepack: [Couldn't skip ID3v2]: %s\n", file);
-    Safefree(si);
-    return -1;
+    goto out;
   }
 
   // seek to first byte of mpc data
   if (PerlIO_seek(infile, si->header_position, SEEK_SET) < 0) {
     PerlIO_printf(PerlIO_stderr(), "Musepack: [Couldn't seek to offset %d]: %s\n", si->header_position, file);
-    Safefree(si);
-    return -1;
+    goto out;
   }
-
-  if (PerlIO_read(infile, &header, MPC_HEADER_SIZE) != MPC_HEADER_SIZE) {
-    PerlIO_printf(PerlIO_stderr(), "Musepack: [Couldn't read]: %s\n", file);
-    Safefree(si);
-    return -1;
+  
+  if ( !_check_buf(infile, &buf, MPC_BLOCK_SIZE, MPC_BLOCK_SIZE) ) {
+    goto out;
   }
 
   if (PerlIO_seek(infile, si->header_position + 6 * 4, SEEK_SET) < 0) {
     PerlIO_printf(PerlIO_stderr(), "Musepack: [Couldn't seek to offset %d + (6*4)]: %s\n", si->header_position, file);
-    Safefree(si);
-    return -1;
+    goto out;
   }
 
   si->tag_offset = PerlIO_tell(infile);
 
   if (PerlIO_seek(infile, 0, SEEK_END) < 0) {
     PerlIO_printf(PerlIO_stderr(), "Musepack: [Couldn't seek to end of file.]: %s\n", file);
-    Safefree(si);
-    return -1;
+    goto out;
   }
 
   si->total_file_length = PerlIO_tell(infile);
+  
+  bptr = buffer_ptr(&buf);
 
-  if (memcmp(header, "MP+", 3) == 0) {
-
-    si->stream_version = header[0] >> 24;
+  if (memcmp(bptr, "MP+", 3) == 0) {
+    buffer_consume(&buf, 3);
+    si->stream_version = buffer_get_char(&buf);
 
     if ((si->stream_version & 15) == 7) {
-      ret = _mpc_read_header_sv7(si, header);
+      DEBUG_TRACE("parsing MPC SV7 header\n");
+      ret = _mpc_read_header_sv7(si);
     }
 
-  } else if (memcmp(header, "MPCK", 4) == 0) {
-    ret = _mpc_read_header_sv8(si, infile);
-  } else {
-    ret = _mpc_read_header_sv6(si, header);
+  }
+  else if (memcmp(bptr, "MPCK", 4) == 0) {
+    buffer_consume(&buf, 4);
+    
+    DEBUG_TRACE("parsing MPC SV8 header\n");
+    ret = _mpc_read_header_sv8(si);
+  }
+  else {
+    PerlIO_printf(PerlIO_stderr(), "Not a Musepack SV7 or SV8 file: %s\n", file);
+    goto out;
   }
 
   // estimation, exact value needs too much time
-  si->pcm_samples = 1152 * si->frames - 576;
-
-  if (si->pcm_samples > 0) {
-    si->average_bitrate = (si->tag_offset - si->header_position) * 8.0 * si->sample_freq / si->pcm_samples;
-  } else {
-    si->average_bitrate = 0;
-  }
+  if ( !si->pcm_samples )
+    si->pcm_samples = 1152 * si->frames - 576;
 
   if (ret == 0) {
     double total_seconds = (double)( (si->pcm_samples * 1.0) / si->sample_freq);
 
+    my_hv_store(info, "stream_version", newSVuv(si->stream_version));
     my_hv_store(info, "samplerate", newSViv(si->sample_freq));
     my_hv_store(info, "channels", newSViv(si->channels));
     my_hv_store(info, "song_length_ms", newSVuv(total_seconds * 1000));
@@ -247,11 +344,21 @@ get_mpcfileinfo(PerlIO *infile, char *file, HV *info)
     
     my_hv_store(info, "audio_offset", newSVuv(si->tag_offset));
     my_hv_store(info, "file_size", newSVuv(si->total_file_length));
-    my_hv_store(info, "encoder", newSVpv(si->encoder, 0));
-    my_hv_store(info, "profile", newSVpv(si->profile_name, 0));
+    
+    if (si->encoder)
+      my_hv_store(info, "encoder", newSVpv(si->encoder, 0));
+    
+    if (si->profile_name)
+      my_hv_store(info, "profile", newSVpv(si->profile_name, 0));
+    
+    my_hv_store(info, "gapless", newSViv(si->is_true_gapless));
+    my_hv_store(info, "track_gain", newSVpvf("%2.2f dB", si->gain_title == 0 ? 0 : MPC_OLD_GAIN_REF - si->gain_title / 256.0));
+    my_hv_store(info, "album_gain", newSVpvf("%2.2f dB", si->gain_album == 0 ? 0 : MPC_OLD_GAIN_REF - si->gain_album / 256.0));
   }
 
+out:
   Safefree(si);
+  buffer_free(&buf);
 
   return ret;
 }

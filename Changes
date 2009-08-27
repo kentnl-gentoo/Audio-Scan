@@ -1,5 +1,11 @@
 Revision history for Audio::Scan
 
+0.30    2009-08-27 00:15:00
+        - Bug 8563, fixed parsing of MP4 sample rate.
+        - Bug 13486, fixed parsing of MP4 files with multiple values for
+          a single key.
+        - Added Snow Leopard 64-bit universal binary support.
+
 0.29    2009-08-07 16:00:00
         - Bug 13198, really fixed bad FLAC bitrate calculation on some
           files under Windows.

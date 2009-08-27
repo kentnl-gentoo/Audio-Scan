@@ -51,23 +51,8 @@ mp4_find_frame(PerlIO *infile, char *file, int offset)
   HV *tags = newHV();
   mp4info *mp4 = _mp4_parse(infile, file, info, tags, 1);
   
-  // Pull out the samplerate, assumes single-track file
-  SV **tracks = my_hv_fetch( info, "tracks" );
-  if (tracks) {
-    SV **track = av_fetch( (AV *)SvRV(*tracks), 0, 0 );
-    if (track) {
-      SV **sr = my_hv_fetch( (HV *)SvRV(*track), "samplerate" );
-      if (sr) {
-        samplerate = SvIV(*sr);
-        DEBUG_TRACE("samplerate: %d\n", samplerate);
-      }
-    }
-  }
-  
-  if ( !samplerate ) {
-    PerlIO_printf(PerlIO_stderr(), "find_frame: unknown sample rate\n");
-    return -1;
-  }
+  // Pull out the samplerate
+  samplerate = SvIV( *( my_hv_fetch( info, "samplerate" ) ) );
   
   // convert offset to sound_sample_loc
   sound_sample_loc = ((offset - 1) / 10) * (samplerate / 100);
@@ -322,6 +307,12 @@ _mp4_read_box(mp4info *mp4)
       return 0;
     }
   }
+  else if ( FOURCC_EQ(type, "mdhd") ) {
+    if ( !_mp4_parse_mdhd(mp4) ) {
+      PerlIO_printf(PerlIO_stderr(), "Invalid MP4 file (bad mdhd box): %s\n", mp4->file);
+      return 0;
+    }
+  }
   else if ( FOURCC_EQ(type, "hdlr") ) {
     if ( !_mp4_parse_hdlr(mp4) ) {
       PerlIO_printf(PerlIO_stderr(), "Invalid MP4 file (bad hdlr box): %s\n", mp4->file);
@@ -518,7 +509,7 @@ _mp4_parse_mvhd(mp4info *mp4)
     buffer_consume(mp4->buf, 8);
     
     timescale = buffer_get_int(mp4->buf);
-    my_hv_store( mp4->info, "timescale", newSVuv(timescale) );
+    my_hv_store( mp4->info, "mv_timescale", newSVuv(timescale) );
     
     my_hv_store( mp4->info, "song_length_ms", newSVuv( (buffer_get_int(mp4->buf) * 1.0 / timescale ) * 1000 ) );
   }
@@ -527,7 +518,7 @@ _mp4_parse_mvhd(mp4info *mp4)
     buffer_consume(mp4->buf, 16);
     
     timescale = buffer_get_int(mp4->buf);
-    my_hv_store( mp4->info, "timescale", newSVuv(timescale) );
+    my_hv_store( mp4->info, "mv_timescale", newSVuv(timescale) );
     
     my_hv_store( mp4->info, "song_length_ms", newSVuv( (buffer_get_int64(mp4->buf) * 1.0 / timescale ) * 1000 ) );
   }
@@ -551,7 +542,7 @@ _mp4_parse_tkhd(mp4info *mp4)
   double height;
   uint8_t version;
   
-  uint32_t timescale = SvIV( *(my_hv_fetch(mp4->info, "timescale")) );
+  uint32_t timescale = SvIV( *(my_hv_fetch(mp4->info, "mv_timescale")) );
   
   if ( !_check_buf(mp4->infile, mp4->buf, mp4->rsize, MP4_BLOCK_SIZE) ) {
     return 0;
@@ -584,7 +575,7 @@ _mp4_parse_tkhd(mp4info *mp4)
     // Skip reserved
     buffer_consume(mp4->buf, 4);
     
-    my_hv_store( trackinfo, "track_length_ms", newSVuv( (buffer_get_int64(mp4->buf) * 1.0 / timescale ) * 1000 ) );
+    my_hv_store( trackinfo, "duration", newSVuv( (buffer_get_int64(mp4->buf) * 1.0 / timescale ) * 1000 ) );
   }
   else {
     return 0;
@@ -611,6 +602,47 @@ _mp4_parse_tkhd(mp4info *mp4)
   // Remember the current track we're dealing with
   mp4->current_track = id;
   
+  return 1;
+}
+
+uint8_t
+_mp4_parse_mdhd(mp4info *mp4)
+{
+  uint32_t timescale;
+  uint8_t version;
+  
+  if ( !_check_buf(mp4->infile, mp4->buf, mp4->rsize, MP4_BLOCK_SIZE) ) {
+    return 0;
+  }
+  
+  version = buffer_get_char(mp4->buf);
+  buffer_consume(mp4->buf, 3); // flags
+  
+  if (version == 0) { // 32-bit values
+    // Skip ctime and mtime
+    buffer_consume(mp4->buf, 8);
+    
+    timescale = buffer_get_int(mp4->buf);
+    my_hv_store( mp4->info, "samplerate", newSVuv(timescale) );
+    
+    my_hv_store( mp4->info, "song_length_ms", newSVuv( (buffer_get_int(mp4->buf) * 1.0 / timescale ) * 1000 ) );
+  }
+  else if (version == 1) { // 64-bit values
+    // Skip ctime and mtime
+    buffer_consume(mp4->buf, 16);
+    
+    timescale = buffer_get_int(mp4->buf);
+    my_hv_store( mp4->info, "samplerate", newSVuv(timescale) );
+    
+    my_hv_store( mp4->info, "song_length_ms", newSVuv( (buffer_get_int64(mp4->buf) * 1.0 / timescale ) * 1000 ) );
+  }
+  else {
+    return 0;
+  }
+    
+  // Skip rest
+  buffer_consume(mp4->buf, 4);
+    
   return 1;
 }
 
@@ -683,8 +715,8 @@ _mp4_parse_mp4a(mp4info *mp4)
   // Skip reserved
   buffer_consume(mp4->buf, 4);
   
-  // XXX: this is not the right place to get samplerate, i.e. 88200 doesn't fit
-  my_hv_store( trackinfo, "samplerate", newSVuv( buffer_get_short(mp4->buf) ) );
+  // Skip bogus samplerate
+  buffer_consume(mp4->buf, 2);
   
   // Skip reserved
   buffer_consume(mp4->buf, 2);
@@ -1004,16 +1036,23 @@ _mp4_parse_ilst(mp4info *mp4)
       
       // Sanity check for bad data size
       if ( bsize == size - 8 ) {
+        SV *skey;
+        
         char *bptr = buffer_ptr(mp4->buf);
         if ( !FOURCC_EQ(bptr, "data") ) {
           return 0;
         }
       
         buffer_consume(mp4->buf, 4);
+        
+        skey = newSVpv(key, 0);
       
-        if ( !_mp4_parse_ilst_data(mp4, bsize - 8, newSVpv(key, 0)) ) {
+        if ( !_mp4_parse_ilst_data(mp4, bsize - 8, skey) ) {
+          SvREFCNT_dec(skey);
           return 0;
         }
+        
+        SvREFCNT_dec(skey);
       }
       else {
         DEBUG_TRACE("    invalid data size %d, skipping value\n", bsize);
@@ -1039,9 +1078,8 @@ _mp4_parse_ilst_data(mp4info *mp4, uint32_t size, SV *key)
   // Skip reserved
   buffer_consume(mp4->buf, 4);
 
-  DEBUG_TRACE("    flags %d\n", flags);
-
-  // XXX store multiple values as array
+  DEBUG_TRACE("      flags %d\n", flags);
+  
   if ( !flags || flags == 21 ) {
     if ( FOURCC_EQ( SvPVX(key), "TRKN" ) || FOURCC_EQ( SvPVX(key), "DISK" ) ) {
       // Special case trkn, disk (pair of 16-bit ints)
@@ -1098,20 +1136,39 @@ _mp4_parse_ilst_data(mp4info *mp4, uint32_t size, SV *key)
     }
   }
   else { // text data
+    char *ckey = SvPVX(key);
     SV *value = newSVpvn( buffer_ptr(mp4->buf), size - 8 );
     sv_utf8_decode(value);
+    
+    DEBUG_TRACE("      %s = %s\n", SvPVX(key), SvPVX(value));
   
     // strip copyright symbol 0xA9 out of key
-    if ( SvPVX(key)[0] == -87 ) {
-      my_hv_store( mp4->tags, SvPVX(key) + 1, value );
+    if ( ckey[0] == -87 ) {
+      ckey++;
+    }
+    
+    // if key exists, create array
+    if ( my_hv_exists( mp4->tags, ckey ) ) {
+      SV **entry = my_hv_fetch( mp4->tags, ckey );
+      if (entry != NULL) {
+        if ( SvTYPE(SvRV(*entry)) == SVt_PVAV ) {
+          av_push( (AV *)SvRV(*entry), value );
+        }
+        else {
+          // A non-array entry, convert to array.
+          AV *ref = newAV();
+          av_push( ref, newSVsv(*entry) );
+          av_push( ref, value );
+          my_hv_store( mp4->tags, ckey, newRV_noinc( (SV*)ref ) );
+        }
+      }
     }
     else {
-      my_hv_store_ent( mp4->tags, key, value );
+      my_hv_store( mp4->tags, ckey, value );  
     }
+    
     buffer_consume(mp4->buf, size - 8);
   }
-  
-  SvREFCNT_dec(key);
   
   return 1;
 } 
@@ -1149,6 +1206,7 @@ _mp4_parse_ilst_custom(mp4info *mp4, uint32_t size)
       }
       
       if ( !_mp4_parse_ilst_data(mp4, bsize - 8, key) ) {
+        SvREFCNT_dec(key);
         return 0;
       }
     }
@@ -1159,6 +1217,8 @@ _mp4_parse_ilst_custom(mp4info *mp4, uint32_t size)
     
     size -= bsize;
   }
+  
+  SvREFCNT_dec(key);
   
   return 1;
 }

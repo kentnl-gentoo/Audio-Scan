@@ -17,7 +17,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frametype.gperf 52629 2009-04-02T14:42:16.820176Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frametype.gperf 58528 2009-09-09T17:49:19.200663Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -357,6 +357,7 @@ WORS, FRAME(url),  PRESERVE, "Official Internet radio station homepage"
 WPAY, FRAME(url),  PRESERVE, "Payment"
 WPUB, FRAME(url),  PRESERVE, "Publishers official webpage"
 WXXX, FRAME(WXXX), PRESERVE, "User defined URL link frame"
+XSOP, FRAME(text), PRESERVE, "Performer sort order (v2.3)"
 #
 # Special frames
 #

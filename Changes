@@ -1,5 +1,14 @@
 Revision history for Audio::Scan
 
+0.39    2009-10-01 16:00:00
+        - Bug 14241, fixed Win32 crash when using find_frame on FLAC files.
+        - Bug 14476, fixed crash when very large artwork is present (now supports
+          tags up to 10M).
+        - MP4: Fixed handling of cover art when multiple covers are present. Currently
+          only the first cover image is returned.
+        - Added is_supported($path) method. Can be used to determine if a given
+          file can be scanned. (Frank Terbeck)
+
 0.38    2009-09-22 13:00:00
         - Fixed crasher bug in average bitrate calculation logic.
 

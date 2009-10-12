@@ -778,9 +778,28 @@ _mp4_parse_esds(mp4info *mp4)
     return 0;
   }
   
-  // Read to end of box
+  // Read audio object type
+  // 5 bits, if 0x1F, read 6 more bits
   len = _mp4_descr_length(mp4->buf);
-  buffer_consume(mp4->buf, len);
+  if (len > 0) {
+    uint32_t aot;
+    uint32_t tmp = buffer_get_char(mp4->buf);
+    len--;
+    
+    aot = (tmp >> 3) & 0x1F;
+    
+    if ( aot == 0x1F ) {
+      uint32_t tmp2 = (tmp << 8) | buffer_get_char(mp4->buf);
+      len--;
+      
+      aot = 32 + ( (tmp2 >> 5) & 0x3F );
+    }
+    
+    my_hv_store( trackinfo, "audio_object_type", newSVuv(aot) );
+    
+    // Skip rest of box
+    buffer_consume(mp4->buf, len);
+  }
   
   // verify SL config descriptor type tag
   if (buffer_get_char(mp4->buf) != 0x06) {
@@ -1091,14 +1110,20 @@ _mp4_parse_ilst_data(mp4info *mp4, uint32_t size, SV *key)
   if ( !flags || flags == 21 ) {
     if ( FOURCC_EQ( SvPVX(key), "TRKN" ) || FOURCC_EQ( SvPVX(key), "DISK" ) ) {
       // Special case trkn, disk (pair of 16-bit ints)
-      uint16_t num, total;
-    
+      uint16_t num = 0;
+      uint16_t total = 0;
+      
       buffer_consume(mp4->buf, 2); // padding
     
-      num   = buffer_get_short(mp4->buf);
-      total = buffer_get_short(mp4->buf);
-    
-      buffer_consume(mp4->buf, size - 14); // optional padding
+      num = buffer_get_short(mp4->buf);
+      
+      // Total may not always be present
+      if (size > 12) {
+        total = buffer_get_short(mp4->buf);  
+        buffer_consume(mp4->buf, size - 14); // optional padding
+      }
+      
+      DEBUG_TRACE("      %d/%d\n", num, total);
     
       if (total) {
         my_hv_store_ent( mp4->tags, key, newSVpvf( "%d/%d", num, total ) );

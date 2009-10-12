@@ -1,5 +1,16 @@
 Revision history for Audio::Scan
 
+0.41    2009-10-12 10:30:00
+        - FLAC: Re-factored FLAC code to remove libFLAC dependency.
+        - FLAC: API change: more accurate seeking via find_frame, which
+          now takes an offset in milliseconds instead of bytes and seeks
+          to the correct audio frame containing the desired sample.
+        - FLAC: Added support for reading ID3v2 tags.
+        - AIFF: Fixed error when reading ID3 chunks with a bad chunk size.
+        - MP4: Fixed parsing of files with short TRKN fields.
+        - MP4: Parse audio object type from esds box.
+        - Vorbis: Added file_size to info.
+
 0.40    2009-10-03 16:00:00
         - Bug 14462, fixed reading of WAV files with 18-byte fmt chunks.
         - WAV: Fixed reading of files with data chunks having the wrong size.

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/tag.c 52786 2009-04-07T15:38:04.236288Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/tag.c 59471 2009-10-13T14:39:35.686417Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -626,11 +626,14 @@ struct id3_tag *v2_parse(id3_byte_t const *ptr)
       goto fail;
   }
 
+/* Return what we've read so far instead of trashing the whole tag
   if (0) {
   fail:
     id3_tag_delete(tag);
     tag = 0;
   }
+*/
+fail:
 
   if (mem)
     free(mem);

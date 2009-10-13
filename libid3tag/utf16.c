@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/utf16.c 52786 2009-04-07T15:38:04.236288Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/utf16.c 59458 2009-10-12T21:59:45.345841Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -277,6 +277,12 @@ id3_ucs4_t *id3_utf16_deserialize(id3_byte_t const **ptr, id3_length_t length,
       break;
     }
   }
+  
+  /* Bug 14728
+    If there is no BOM, assume LE, this is what appears in the wild -andy
+  */
+  if (byteorder == ID3_UTF16_BYTEORDER_ANY)
+    byteorder = ID3_UTF16_BYTEORDER_LE;
 
   utf16ptr = utf16;
   while (end - *ptr > 0 && (*utf16ptr = id3_utf16_get(ptr, byteorder)))

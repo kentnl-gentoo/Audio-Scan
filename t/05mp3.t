@@ -2,12 +2,17 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 254;
+use Test::More tests => 255;
 
 use Audio::Scan;
-use Encode;
 
-my $pate = Encode::decode_utf8("pâté");
+my $HAS_ENCODE;
+my $pate;
+eval {
+    require Encode;
+    $pate = Encode::decode_utf8("pâté");
+    $HAS_ENCODE = 1;
+};
 
 ## Test file info on non-tagged files
 
@@ -219,7 +224,11 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v1 ISO-8859-1 artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v1 ISO-8859-1 artist ok' );
+    }
     
     # Make sure it's been converted to UTF-8
     is( utf8::valid( $tags->{TPE1} ), 1, 'ID3v1 ISO-8859-1 is valid UTF-8' );
@@ -303,14 +312,20 @@ my $pate = Encode::decode_utf8("pâté");
     my $info = $s->{info};
     my $tags = $s->{tags};
     
-    my $a = Encode::decode_utf8('Ester Koèièková a Lubomír Nohavica');
-    my $b = Encode::decode_utf8('Ester Koèièková a Lubomír Nohavica s klavírem');
-    my $c = Encode::decode_utf8('Tøem sestrám');
-    
     is( $info->{id3_version}, 'ID3v2.3.0', 'ID3v2.3 version ok' );
-    is( $tags->{TPE1}, $a, 'ID3v2.3 ISO-8859-1 artist ok' );
-    is( $tags->{TALB}, $b, 'ID3v2.3 ISO-8859-1 album ok' );
-    is( $tags->{TIT2}, $c, 'ID3v2.3 ISO-8859-1 title ok' );
+    
+    SKIP:
+    {
+        skip 'Encode is not available', 3 unless $HAS_ENCODE;
+        my $a = Encode::decode_utf8('Ester Koèièková a Lubomír Nohavica');
+        my $b = Encode::decode_utf8('Ester Koèièková a Lubomír Nohavica s klavírem');
+        my $c = Encode::decode_utf8('Tøem sestrám');
+    
+    
+        is( $tags->{TPE1}, $a, 'ID3v2.3 ISO-8859-1 artist ok' );
+        is( $tags->{TALB}, $b, 'ID3v2.3 ISO-8859-1 album ok' );
+        is( $tags->{TIT2}, $c, 'ID3v2.3 ISO-8859-1 title ok' );
+    }
     
     # Make sure it's been converted to UTF-8
     is( utf8::valid( $tags->{TPE1} ), 1, 'ID3v2.3 ISO-8859-1 is valid UTF-8' );
@@ -332,7 +347,12 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v2.3 UTF-16BE artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v2.3 UTF-16BE artist ok' );
+    }
+    
     is( $tags->{TIT2}, 'Track Title', 'ID3v2.3 UTF-16BE title ok' );
     
     is( utf8::valid( $tags->{TPE1} ), 1, 'ID3v2.3 UTF-16BE is valid UTF-8' );
@@ -344,7 +364,12 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v2.3 UTF-16LE artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v2.3 UTF-16LE artist ok' );
+    }
+    
     is( $tags->{TIT2}, 'Track Title', 'ID3v2.3 UTF-16LE title ok' );
     
     is( utf8::valid( $tags->{TPE1} ), 1, 'ID3v2.3 UTF-16LE is valid UTF-8' );
@@ -403,10 +428,14 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    my $title = Encode::decode_utf8("花火");
-    
     is( $tags->{TALB}, 'aikosingles', 'ID3v2.3 corrupted album ok' );
-    is( $tags->{TIT2}, $title, 'ID3v2.3 corrupted title ok' );
+    
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        my $title = Encode::decode_utf8("花火");
+        is( $tags->{TIT2}, $title, 'ID3v2.3 corrupted title ok' );
+    }
 }
 
 # ID3v2.4
@@ -467,7 +496,12 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v2.4 ISO-8859-1 artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v2.4 ISO-8859-1 artist ok' );
+    }
+    
     is( $tags->{TIT2}, 'Track Title', 'ID3v2.4 ISO-8859-1 title ok' );
 }
 
@@ -477,7 +511,12 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v2.4 UTF-16BE artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v2.4 UTF-16BE artist ok' );
+    }
+    
     is( $tags->{TIT2}, 'Track Title', 'ID3v2.4 UTF-16BE title ok' );
     is( $tags->{TCON}, 'Ambient', 'ID3v2.4 genre in (NN) format ok' );
 }
@@ -488,7 +527,12 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    is( $tags->{TPE1}, $pate, 'ID3v2.4 UTF-16LE artist ok' );
+    SKIP:
+    {
+        skip 'Encode is not available', 1 unless $HAS_ENCODE;
+        is( $tags->{TPE1}, $pate, 'ID3v2.4 UTF-16LE artist ok' );
+    }
+    
     is( $tags->{TIT2}, 'Track Title', 'ID3v2.4 UTF-16LE title ok' );
 }
 
@@ -498,12 +542,16 @@ my $pate = Encode::decode_utf8("pâté");
     
     my $tags = $s->{tags};
     
-    my $a = Encode::decode_utf8('ЪЭЯ');
-    my $b = Encode::decode_utf8('ΈΤ');
-    my $c = Encode::decode_utf8('γζ');
+    SKIP:
+    {
+        skip 'Encode is not available', 2 unless $HAS_ENCODE;
+        my $a = Encode::decode_utf8('ЪЭЯ');
+        my $b = Encode::decode_utf8('ΈΤ');
+        my $c = Encode::decode_utf8('γζ');
     
-    is( $tags->{TPE1}, $a, 'ID3v2.4 UTF-8 title ok' );
-    is( $tags->{$b}, $c, 'ID3v2.4 UTF-8 TXXX key/value ok' );
+        is( $tags->{TPE1}, $a, 'ID3v2.4 UTF-8 title ok' );
+        is( $tags->{$b}, $c, 'ID3v2.4 UTF-8 TXXX key/value ok' );
+    }
 }
 
 # ID3v2.4 from iTunes with non-standard tags with spaces
@@ -766,11 +814,20 @@ my $pate = Encode::decode_utf8("pâté");
     is( length( $tags->{APIC}->[4] ), 33133, 'ID3v2.4 corrupt frame APIC ok' );
 }
 
-# Test for is_supported, doesn't really belong here but it'll do
+# Bug 8380, ID3v2 + ID3v1
 {
-	is( Audio::Scan->is_supported( _f('v1.mp3') ), 1, 'is_supported on mp3 file ok' );
-	is( Audio::Scan->is_supported( _f('foo.dat') ), 0, 'is_supported on non-audio file ok' );
+    my $s = Audio::Scan->scan( _f('v2-v1.mp3') );
+    
+    my $info = $s->{info};
+    my $tags = $s->{tags};
+    
+    is( $info->{id3_version}, 'ID3v2.3.0', 'v2-v1 version ok' );
+    
+    is( $tags->{TPE1}, 'AC/DC', 'v2-v1 ID3v1 TPE1 ok' );
+    is( $tags->{REPLAYGAIN_TRACK_GAIN}, '-9.15 dB', 'v2-v1 ID3v2 TXXX ok' );
 }
+
+# Test for 
 
 sub _f {    
     return catfile( $FindBin::Bin, 'mp3', shift );

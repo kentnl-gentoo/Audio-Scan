@@ -1,5 +1,19 @@
 Revision history for Audio::Scan
 
+0.45    2009-10-26 15:00:00
+        - Bug 8380, Read multiple ID3 tags when more than one is found
+          in a file, such as ID3v1 + ID3v2.
+        - Fixed MP3 find_frame when looking for audio_offset + 1 and
+          a Xing TOC is present.  Xing TOC is ignored for this special
+          case.
+        - Fixed FLAC find_frame when file has ID3v2 tags.
+        - Bug 14883, added audio_size info to WAV and AIFF.
+        - Fixed crash on invalid FLAC picture block.
+        - Fixed bug in Ogg bitrate calculation.
+        - Fixed tests to work on old Perls without Encode.
+        - Max buffer size got accidentally reset to 10M in 0.44.
+        - Added utility methods: get_types, extensions_for, type_for (Frank Terbeck)
+
 0.44    2009-10-16 22:00:00
         - Bug 14788, ASF: Fixed crasher when reading multiple integer tags.
         - Changed Newx/Newxz calls to use older New/Newz API to support older Perls.

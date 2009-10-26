@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/file.c 59610 2009-10-17T01:38:41.390924Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/file.c 59812 2009-10-26T18:17:23.248767Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -45,25 +45,6 @@
 # include "file.h"
 # include "tag.h"
 # include "field.h"
-
-struct filetag {
-  struct id3_tag *tag;
-  unsigned long location;
-  id3_length_t length;
-};
-
-struct id3_file {
-  FILE *iofile;
-  enum id3_file_mode mode;
-  char *path;
-
-  int flags;
-
-  struct id3_tag *primary;
-
-  unsigned int ntags;
-  struct filetag *tags;
-};
 
 enum {
   ID3_FILE_FLAG_ID3V1 = 0x0001

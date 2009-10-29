@@ -79,8 +79,6 @@ _flac_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
     
     DEBUG_TRACE("Found ID3v2 tag of size %d\n", id3_size);
     
-    my_hv_store( info, "id3_version", newSVpvf( "ID3v2.%d.%d", bptr[3], bptr[4] ) );
-    
     flac->audio_offset += id3_size;
             
     // seek past ID3, we will parse it later
@@ -218,7 +216,7 @@ _flac_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   song_length_ms = SvIV( *( my_hv_fetch(info, "song_length_ms") ) );
   
   if (song_length_ms > 0) {
-    my_hv_store( info, "bitrate", newSVuv(8 * (flac->file_size - flac->audio_offset) / (1. * song_length_ms / 1000) ));
+    my_hv_store( info, "bitrate", newSVuv( _bitrate(flac->file_size - flac->audio_offset, song_length_ms) ) );
   }
   
   my_hv_store( info, "file_size", newSVuv(flac->file_size) );
@@ -226,7 +224,7 @@ _flac_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   
   // Parse ID3 last, due to an issue with libid3tag screwing
   // up the filehandle
-  if (id3_size) {
+  if (id3_size && !seeking) {
     parse_id3(infile, file, info, tags, 0);
   }
 

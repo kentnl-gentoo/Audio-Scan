@@ -54,9 +54,7 @@ get_ogg_metadata(PerlIO *infile, char *file, HV *info, HV *tags)
   buffer_init(&ogg_buf, OGG_BLOCK_SIZE);
   buffer_init(&vorbis_buf, 0);
   
-  PerlIO_seek(infile, 0, SEEK_END);
-  file_size = PerlIO_tell(infile);
-  PerlIO_seek(infile, 0, SEEK_SET);
+  file_size = _file_size(infile);
   
   if ( !_check_buf(infile, &ogg_buf, 10, OGG_BLOCK_SIZE) ) {
     err = -1;
@@ -337,6 +335,7 @@ _parse_vorbis_comments(Buffer *vorbis_buf, HV *tags, int has_framing)
   unsigned int len;
   unsigned int num_comments;
   char *tmp;
+  char *bptr;
   SV *vendor;
   
   // Vendor string
@@ -352,13 +351,30 @@ _parse_vorbis_comments(Buffer *vorbis_buf, HV *tags, int has_framing)
   while (num_comments--) {
     len = buffer_get_int_le(vorbis_buf);
     
-    New(0, tmp, (int)len + 1, char);
-    buffer_get(vorbis_buf, tmp, len);
-    tmp[len] = '\0';
+    bptr = buffer_ptr(vorbis_buf);
     
-    _split_vorbis_comment( tmp, tags );
+    if (
+#ifdef _MSC_VER
+      !strnicmp(bptr, "COVERART=", 9)
+#else
+      !strncasecmp(bptr, "COVERART=", 9)
+#endif
+      &&
+      getenv("AUDIO_SCAN_NO_ARTWORK")
+    ) {
+      my_hv_store_ent( tags, newSVpvn("COVERART", 8), newSVuv(len - 9) );
+      
+      buffer_consume(vorbis_buf, len);
+    }
+    else {    
+      New(0, tmp, (int)len + 1, char);
+      buffer_get(vorbis_buf, tmp, len);
+      tmp[len] = '\0';
     
-    Safefree(tmp);
+      _split_vorbis_comment( tmp, tags );
+    
+      Safefree(tmp);
+    }
   }
   
   if (has_framing) {

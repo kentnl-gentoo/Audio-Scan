@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 40;
+use Test::More tests => 42;
 
 use Audio::Scan;
 
@@ -32,6 +32,7 @@ eval {
 
     is($info->{bitrate_average}, 9887, 'Bitrate ok');
     is($info->{channels}, 2, 'Channels ok');
+    is($info->{file_size}, 4553, 'File size ok' );
     is($info->{stereo}, 1, 'Stereo ok');
     is($info->{samplerate}, 44100, 'Sample Rate ok');
     is($info->{song_length_ms}, 3684, 'Song length ok');
@@ -70,6 +71,17 @@ eval {
     is($tags->{ARTIST}, 'Medeski Scofield Martin & Wood', 'Large page artist tag ok');
     is($tags->{ALBUM}, 'Out Louder (bonus disc)', 'Large page album tag ok');
     is(length($tags->{COVERART}), 104704, 'Cover art ok');
+}
+
+# Test ignoring artwork
+{
+    local $ENV{AUDIO_SCAN_NO_ARTWORK} = 1;
+    
+    my $s = Audio::Scan->scan( _f('large-pagesize.ogg') );
+    
+    my $tags = $s->{tags};
+    
+    is( $tags->{COVERART}, 104704, 'Cover art with AUDIO_SCAN_NO_ARTWORK ok');
 }
 
 # Old encoder files.

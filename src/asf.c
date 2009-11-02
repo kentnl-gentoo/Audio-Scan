@@ -64,9 +64,7 @@ get_asf_metadata(PerlIO *infile, char *file, HV *info, HV *tags)
   
   int err = 0;
   
-  PerlIO_seek(infile, 0, SEEK_END);
-  file_size = PerlIO_tell(infile);
-  PerlIO_seek(infile, 0, SEEK_SET);
+  file_size = _file_size(infile);
   
   buffer_init(&asf_buf, 0);
   
@@ -311,7 +309,7 @@ _parse_extended_content_description(Buffer *buf, HV *info, HV *tags)
     }
     
     if (value != NULL) {
-#ifdef DEBUG
+#ifdef AUDIO_SCAN_DEBUG
       if ( data_type == 0 ) {
         DEBUG_TRACE("  %s / type %d / %s\n", SvPVX(key), data_type, SvPVX(value));
       }
@@ -645,7 +643,7 @@ _parse_metadata(Buffer *buf, HV *info, HV *tags)
     }
     
     if (value != NULL) {
-#ifdef DEBUG
+#ifdef AUDIO_SCAN_DEBUG
       if ( data_type == 0 ) {
         DEBUG_TRACE("    %s / type %d / stream_number %d / %s\n", SvPVX(key), data_type, stream_number, SvPVX(value));
       }
@@ -917,7 +915,7 @@ _parse_metadata_library(Buffer *buf, HV *info, HV *tags)
     uint16_t stream_number, name_len, data_type;
     uint32_t data_len;
     
-#ifdef DEBUG
+#ifdef AUDIO_SCAN_DEBUG
     uint16_t lang_index    = buffer_get_short_le(buf);
 #else
     buffer_consume(buf, 2);
@@ -974,7 +972,7 @@ _parse_metadata_library(Buffer *buf, HV *info, HV *tags)
     }
     
     if (value != NULL) {
-#ifdef DEBUG
+#ifdef AUDIO_SCAN_DEBUG
       if ( data_type == 0 || data_type == 6 ) {
         DEBUG_TRACE("    %s / type %d / lang_index %d / stream_number %d / %s\n", SvPVX(key), data_type, lang_index, stream_number, SvPVX(value));
       }
@@ -1364,7 +1362,13 @@ _parse_picture(Buffer *buf)
   my_hv_store( picture, "description", desc );
   buffer_free(&utf8_buf);
   
-  my_hv_store( picture, "image", newSVpvn( buffer_ptr(buf), image_len ) );
+  if ( getenv("AUDIO_SCAN_NO_ARTWORK") ) {
+    my_hv_store( picture, "image", newSVuv(image_len) );
+  }
+  else {
+    my_hv_store( picture, "image", newSVpvn( buffer_ptr(buf), image_len ) );
+  }
+  
   buffer_consume(buf, image_len);
   
   return newRV_noinc( (SV *)picture );

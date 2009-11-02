@@ -194,9 +194,7 @@ _mp4_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   
   buffer_init(mp4->buf, MP4_BLOCK_SIZE);
   
-  PerlIO_seek(infile, 0, SEEK_END);
-  file_size = PerlIO_tell(infile);
-  PerlIO_seek(infile, 0, SEEK_SET);
+  file_size = _file_size(infile);
   
   my_hv_store( info, "file_size", newSVuv(file_size) );
   
@@ -1188,15 +1186,22 @@ _mp4_parse_ilst_data(mp4info *mp4, uint32_t size, SV *key)
   }
   else { // text data
     unsigned char *ckey = (unsigned char *)SvPVX(key);
-    SV *value = newSVpvn( buffer_ptr(mp4->buf), size - 8 );
-    sv_utf8_decode(value);
+    SV *value;
     
-    // strip copyright symbol 0xA9 out of key
-    if ( ckey[0] == 0xA9 ) {
-      ckey++;
+    if ( FOURCC_EQ(ckey, "COVR") && getenv("AUDIO_SCAN_NO_ARTWORK") ) {
+      value = newSVuv(size - 8);
     }
-    
-    DEBUG_TRACE("      %s = %s\n", ckey, SvPVX(value));
+    else {
+      value = newSVpvn( buffer_ptr(mp4->buf), size - 8 );
+      sv_utf8_decode(value);
+      
+      // strip copyright symbol 0xA9 out of key
+      if ( ckey[0] == 0xA9 ) {
+        ckey++;
+      }
+
+      DEBUG_TRACE("      %s = %s\n", ckey, SvPVX(value));
+    }
     
     // if key exists, create array
     if ( my_hv_exists( mp4->tags, (char *)ckey ) ) {

@@ -53,9 +53,7 @@ _flac_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   
   buffer_init(flac->buf, FLAC_BLOCK_SIZE);
   
-  PerlIO_seek(infile, 0, SEEK_END);
-  flac->file_size = PerlIO_tell(infile);
-  PerlIO_seek(infile, 0, SEEK_SET);
+  flac->file_size = _file_size(infile);
   
   if ( !_check_buf(infile, flac->buf, 10, FLAC_BLOCK_SIZE) ) {
     err = -1;
@@ -756,7 +754,13 @@ _flac_parse_picture(flacinfo *flac)
     goto out;
   }
   
-  my_hv_store( picture, "image_data", newSVpvn( buffer_ptr(flac->buf), pic_length ) );
+  if ( getenv("AUDIO_SCAN_NO_ARTWORK") ) {
+    my_hv_store( picture, "image_data", newSVuv(pic_length) );
+  }
+  else {
+    my_hv_store( picture, "image_data", newSVpvn( buffer_ptr(flac->buf), pic_length ) );
+  }
+  
   buffer_consume(flac->buf, pic_length);
   
   DEBUG_TRACE("  found picture of length %d\n", pic_length);

@@ -36,7 +36,7 @@ typedef struct _GUID {
   uint16_t Data2;
   uint16_t Data3;
   uint8_t  Data4[8];
-} GUID;
+} _PACKED GUID;
 #endif
 
 /* for PRIu64 */
@@ -70,3 +70,4 @@ extern int32_t skip_id3v2(PerlIO *infile);
 extern uint32_t _bitrate(uint32_t audio_size, uint32_t song_length_ms);
 extern off_t _file_size(PerlIO *infile);
 extern int _env_true(const char *name);
+

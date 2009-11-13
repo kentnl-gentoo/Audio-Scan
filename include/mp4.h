@@ -18,6 +18,15 @@
 
 #define FOURCC_EQ(a, b) ((a)[0] == (b)[0] && (a)[1] == (b)[1] && (a)[2] && (b)[2] && (a)[3] == (b)[3])
 
+const uint32_t samplerate_table[16] = {
+  96000, 88200, 64000, 48000, 44100, 32000, 24000,
+  22050, 16000, 12000, 11025, 8000, 7350, -1, -1, 0
+};
+
+const uint8_t bps_table[4] = {
+  8, 16, 20, 24
+};
+
 typedef struct tts {
   uint32_t sample_count;
   uint32_t sample_duration;
@@ -40,7 +49,6 @@ typedef struct mp4info {
   HV *info;
   HV *tags;
   uint32_t current_track;
-  uint8_t need_calc_bitrate;
   uint8_t seen_moov;
   
   // Data structures used to support seeking

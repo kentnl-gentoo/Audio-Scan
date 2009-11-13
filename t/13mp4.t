@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 92;
+use Test::More tests => 97;
 
 use Audio::Scan;
 
@@ -24,10 +24,10 @@ use Audio::Scan;
     is( $info->{minor_version}, 0, 'Minor version ok' );
     is( $info->{song_length_ms}, 69, 'Song length ok' );
     is( $info->{samplerate}, 44100, 'Sample rate ok' );
+    is( $info->{avg_bitrate}, 96000, 'Avg bitrate ok' );
     
     is( $track->{audio_object_type}, 2, 'Audio object type ok' );
     is( $track->{audio_type}, 64, 'Audio type ok' );
-    is( $track->{avg_bitrate}, 96000, 'Avg bitrate ok' );
     is( $track->{bits_per_sample}, 16, 'Bits per sample ok' );
     is( $track->{channels}, 2, 'Channels ok' );
     is( $track->{duration}, 69, 'Duration ok' );
@@ -80,8 +80,8 @@ use Audio::Scan;
     is( $info->{audio_offset}, 3850, 'ALAC audio offset ok' );
     is( $info->{song_length_ms}, 10, 'ALAC song length ok' );
     is( $info->{samplerate}, 44100, 'ALAC samplerate ok' );
+    is( $info->{avg_bitrate}, 981600, 'ALAC avg bitrate ok' );
     
-    is( $track->{avg_bitrate}, 981600, 'ALAC avg bitrate ok' );
     is( $track->{duration}, 10, 'ALAC duration ok' );
     is( $track->{encoding}, 'alac', 'ALAC encoding ok' );
     
@@ -96,14 +96,12 @@ use Audio::Scan;
     
     my $info  = $s->{info};
     my $tags  = $s->{tags};
-    my $track = $info->{tracks}->[0];
     
     is( $info->{audio_offset}, 20, 'Leading MDAT offset ok' );
     is( $info->{leading_mdat}, 1, 'Leading MDAT flag ok' );
     is( $info->{song_length_ms}, 69845, 'Leading MDAT length ok' );
     is( $info->{samplerate}, 44100, 'Leading MDAT samplerate ok' );
-    
-    is( $track->{avg_bitrate}, 128000, 'Leading MDAT bitrate ok' );
+    is( $info->{avg_bitrate}, 128000, 'Leading MDAT bitrate ok' );
     
     is( $tags->{DAY}, '-001', 'Leading MDAT DAY ok' );
     is( $tags->{TOO}, 'avc2.0.11.1110', 'Leading MDAT TOO ok' );
@@ -180,19 +178,26 @@ use Audio::Scan;
 }
 
 # HD-AAC file
+# Contains 48khz LC track and 96khz SLS track
 {
     my $s = Audio::Scan->scan( _f('hd-aac.m4a') );
     
     my $info = $s->{info};
     
-    is( $info->{samplerate}, 44100, 'HD-AAC samplerate ok' );
-    is( $info->{song_length_ms}, 217872, 'HD-AAC song length ok' );
+    is( $info->{samplerate}, 96000, 'HD-AAC samplerate ok' );
+    is( $info->{song_length_ms}, 409130, 'HD-AAC song length ok' );
+    is( $info->{avg_bitrate}, 4, 'HD-AAC avg bitrate ok' );
     
     my $track1 = $info->{tracks}->[0];
     my $track2 = $info->{tracks}->[1];
     
     is( $track1->{audio_object_type}, 2, 'HD-AAC LC track ok' );
+    is( $track1->{samplerate}, 48000, 'HD-AAC LC track samplerate ok' );
+    is( $track1->{bits_per_sample}, 16, 'HD-AAC LC track bps ok' );
+    
     is( $track2->{audio_object_type}, 37, 'HD-AAC SLS track ok' );
+    is( $track2->{samplerate}, 96000, 'HD-AAC SLS track samplerate ok' );
+    is( $track2->{bits_per_sample}, 24, 'HD-AAC SLS track bps ok' );
 }
 
 # Find frame

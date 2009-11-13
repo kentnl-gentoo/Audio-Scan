@@ -203,7 +203,7 @@ _mp4_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   
   while ( (box_size = _mp4_read_box(mp4)) > 0 ) {
     mp4->audio_offset += box_size;
-    DEBUG_TRACE("read box of size %d / audio_offset %d\n", box_size, mp4->audio_offset);
+    DEBUG_TRACE("read box of size %d / audio_offset %llu\n", box_size, mp4->audio_offset);
     
     if (mp4->audio_offset >= file_size)
       break;
@@ -212,8 +212,7 @@ _mp4_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   // XXX: if no ftyp was found, assume it is brand 'mp41'
   
   // if no bitrate was found (i.e. ALAC), calculate based on file_size/song_length_ms
-  if (mp4->need_calc_bitrate) {
-    HV *trackinfo = _mp4_get_current_trackinfo(mp4);
+  if ( !my_hv_exists(info, "avg_bitrate") ) {
     SV **entry = my_hv_fetch(info, "song_length_ms");
     if (entry) {
       SV **audio_offset = my_hv_fetch(info, "audio_offset");
@@ -221,7 +220,7 @@ _mp4_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
         uint32_t song_length_ms = SvIV(*entry);
         uint32_t bitrate = _bitrate(file_size - SvIV(*audio_offset), song_length_ms);
       
-        my_hv_store( trackinfo, "avg_bitrate", newSVuv(bitrate) );
+        my_hv_store( info, "avg_bitrate", newSVuv(bitrate) );
       }
     }
   }
@@ -269,7 +268,7 @@ _mp4_read_box(mp4info *mp4)
   
   mp4->size = size;
   
-  DEBUG_TRACE("%s size %d\n", type, size);
+  DEBUG_TRACE("%s size %llu\n", type, size);
   
   if ( FOURCC_EQ(type, "ftyp") ) {
     if ( !_mp4_parse_ftyp(mp4) ) {
@@ -340,9 +339,6 @@ _mp4_read_box(mp4info *mp4)
     HV *trackinfo = _mp4_get_current_trackinfo(mp4);
     
     my_hv_store( trackinfo, "encoding", newSVpvn("alac", 4) );
-    
-    // Flag that we'll have to calculate bitrate later
-    mp4->need_calc_bitrate = 1;
         
     // Skip rest
     skip = 1;
@@ -450,7 +446,7 @@ _mp4_read_box(mp4info *mp4)
       PerlIO_seek(mp4->infile, mp4->rsize - buffer_len(mp4->buf), SEEK_CUR);
       buffer_clear(mp4->buf);
       
-      DEBUG_TRACE("  seeked to %d\n", PerlIO_tell(mp4->infile));
+      DEBUG_TRACE("  seeked to %d\n", (int)PerlIO_tell(mp4->infile));
     }
   }
   
@@ -727,6 +723,7 @@ _mp4_parse_esds(mp4info *mp4)
 {
   HV *trackinfo = _mp4_get_current_trackinfo(mp4);
   uint32_t len = 0;
+  uint32_t avg_bitrate;
   
   if ( !_check_buf(mp4->infile, mp4->buf, mp4->rsize, MP4_BLOCK_SIZE) ) {
     return 0;
@@ -769,7 +766,15 @@ _mp4_parse_esds(mp4info *mp4)
   buffer_consume(mp4->buf, 4);
   
   my_hv_store( trackinfo, "max_bitrate", newSVuv( buffer_get_int(mp4->buf) ) );
-  my_hv_store( trackinfo, "avg_bitrate", newSVuv( buffer_get_int(mp4->buf) ) );
+  
+  avg_bitrate = buffer_get_int(mp4->buf);
+  if (avg_bitrate) {
+    if ( my_hv_exists(mp4->info, "avg_bitrate") ) {
+      // If there are multiple tracks, just add up the bitrates
+      avg_bitrate += SvIV(*(my_hv_fetch(mp4->info, "avg_bitrate")));
+    }
+    my_hv_store( mp4->info, "avg_bitrate", newSVuv(avg_bitrate) );
+  }
   
   // verify DecSpecificInfoTag
   if (buffer_get_char(mp4->buf) != 0x05) {
@@ -780,23 +785,47 @@ _mp4_parse_esds(mp4info *mp4)
   // 5 bits, if 0x1F, read 6 more bits
   len = _mp4_descr_length(mp4->buf);
   if (len > 0) {
-    uint32_t aot;
-    uint32_t tmp = buffer_get_char(mp4->buf);
-    len--;
+    len *= 8; // count the number of bits left
     
-    aot = (tmp >> 3) & 0x1F;
+    uint32_t aot = buffer_get_bits(mp4->buf, 5);
+    len -= 5;
     
-    if ( aot == 0x1F ) {
-      uint32_t tmp2 = (tmp << 8) | buffer_get_char(mp4->buf);
-      len--;
+    if ( aot == 0x1F ) {      
+      aot = 32 + buffer_get_bits(mp4->buf, 6);
+      len -= 6;
+    }
+    
+    // samplerate: 4 bits
+    //   if 0xF, samplerate is next 24 bits
+    //   else lookup in samplerate table
+    {
+      uint32_t samplerate = buffer_get_bits(mp4->buf, 4);
+      len -= 4;
       
-      aot = 32 + ( (tmp2 >> 5) & 0x3F );
+      if ( samplerate != 0xF ) {
+        // Don't worry about the extended samplerate (24 bits) for now
+        samplerate = samplerate_table[samplerate];
+        my_hv_store( trackinfo, "samplerate", newSVuv(samplerate) );
+        
+        // skip channel configuration (4 bits)
+        buffer_get_bits(mp4->buf, 4);
+        len -= 4;
+        
+        if ( aot == 37 ) {
+          // Read some SLS-specific config
+          // bits per sample (3 bits) { 8, 16, 20, 24 }
+          uint8_t bps = buffer_get_bits(mp4->buf, 3);
+          len -= 3;
+          
+          my_hv_store( trackinfo, "bits_per_sample", newSVuv( bps_table[bps] ) );
+        }
+      }
     }
     
     my_hv_store( trackinfo, "audio_object_type", newSVuv(aot) );
     
     // Skip rest of box
-    buffer_consume(mp4->buf, len);
+    buffer_get_bits(mp4->buf, len);
   }
   
   // verify SL config descriptor type tag
@@ -1025,7 +1054,7 @@ _mp4_parse_ilst(mp4info *mp4)
       return 0;
     }
     
-    DEBUG_TRACE("  ilst rsize %d\n", mp4->rsize);
+    DEBUG_TRACE("  ilst rsize %llu\n", mp4->rsize);
     
     // Read Apple annotation box
     size = buffer_get_int(mp4->buf);

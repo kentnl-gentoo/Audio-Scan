@@ -18,7 +18,7 @@
 
 #define  BUFFER_MAX_CHUNK  0x1400000
 #define  BUFFER_MAX_LEN    0x1400000
-#define  BUFFER_ALLOCSZ    0x008000
+#define  BUFFER_ALLOCSZ    0x002000
 
 #define UnsignedToFloat(u) (((double)((long)(u - 2147483647L - 1))) + 2147483648.0)
 
@@ -27,8 +27,7 @@
 void
 buffer_init(Buffer *buffer, uint32_t len)
 {
-  if (!len)
-    len = 4096;
+  if (!len) len = BUFFER_ALLOCSZ;
 
   buffer->alloc = 0;
   New(0, buffer->buf, (int)len, u_char);
@@ -37,6 +36,10 @@ buffer_init(Buffer *buffer, uint32_t len)
   buffer->end = 0;
   buffer->cache = 0;
   buffer->ncached = 0;
+
+#ifdef AUDIO_SCAN_DEBUG
+  fprintf(stderr, "Buffer allocated with %d bytes\n", len);
+#endif
 }
 
 /* Frees any memory used for the buffer. */
@@ -45,6 +48,9 @@ void
 buffer_free(Buffer *buffer)
 {
   if (buffer->alloc > 0) {
+#ifdef AUDIO_SCAN_DEBUG
+    fprintf(stderr, "Buffer high water mark: %d\n", buffer->alloc);
+#endif
     memset(buffer->buf, 0, buffer->alloc);
     buffer->alloc = 0;
     Safefree(buffer->buf);
@@ -83,6 +89,9 @@ buffer_compact(Buffer *buffer)
    * data to the beginning.
    */
   if (buffer->offset > MIN(buffer->alloc, BUFFER_MAX_CHUNK)) {
+#ifdef AUDIO_SCAN_DEBUG
+    fprintf(stderr, "Buffer compacting (%d -> %d)\n", buffer->offset + buffer_len(buffer), buffer_len(buffer));
+#endif
     Move(buffer->buf + buffer->offset, buffer->buf, (int)(buffer->end - buffer->offset), u_char);
     buffer->end -= buffer->offset;
     buffer->offset = 0;
@@ -115,7 +124,7 @@ buffer_append_space(Buffer *buffer, uint32_t len)
 
 restart:
   /* If there is enough space to store all data, store it now. */
-  if (buffer->end + len < buffer->alloc) {
+  if (buffer->end + len <= buffer->alloc) {
     p = buffer->buf + buffer->end;
     buffer->end += len;
     return p;
@@ -130,6 +139,9 @@ restart:
   if (newlen > BUFFER_MAX_LEN)
     croak("buffer_append_space: alloc %u too large (max %u)",
         newlen, BUFFER_MAX_LEN);
+#ifdef AUDIO_SCAN_DEBUG
+  fprintf(stderr, "Buffer extended to %d\n", newlen);
+#endif
   Renew(buffer->buf, (int)newlen, u_char);
   buffer->alloc = newlen;
   goto restart;
@@ -236,7 +248,7 @@ buffer_ptr(Buffer *buffer)
 }
 
 /* Dumps the contents of the buffer to stderr. */
-
+#ifdef AUDIO_SCAN_DEBUG
 void
 buffer_dump(Buffer *buffer, uint32_t len)
 {
@@ -256,6 +268,7 @@ buffer_dump(Buffer *buffer, uint32_t len)
 
   fprintf(stderr, "\r\n");
 }
+#endif
 
 // Useful functions from bufaux.c
 

@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 59610 2009-10-17T01:38:41.390924Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/frame.c 60446 2009-11-21T02:11:55.828645Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -260,7 +260,7 @@ int parse_data(struct id3_frame *frame,
   end = data + length;
 
   for (i = 0; i < frame->nfields; ++i) {
-    if (id3_field_parse(&frame->fields[i], &data, end - data, &encoding) == -1)
+    if (id3_field_parse(&frame->fields[i], &data, end - data, &encoding, frame) == -1)
       return -1;
   }
 

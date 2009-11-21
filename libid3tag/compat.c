@@ -48,7 +48,7 @@ error "gperf generated tables don't work with this execution character set. Plea
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/compat.c 55421 2009-06-04T17:49:52.020169Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/compat.c 60446 2009-11-21T02:11:55.828645Z andy  $
  */
 
 # ifdef HAVE_CONFIG_H
@@ -357,7 +357,7 @@ int translate_TCON(struct id3_frame *frame, char const *oldid,
 
   end = data + length;
 
-  if (id3_field_parse(&frame->fields[0], &data, end - data, &encoding) == -1)
+  if (id3_field_parse(&frame->fields[0], &data, end - data, &encoding, frame) == -1)
     goto fail;
 
   string = id3_parse_string(&data, end - data, encoding, 0);
@@ -420,7 +420,7 @@ int translate_APIC(struct id3_frame *frame, char const *oldid,
       frame->fields[i].type = ID3_FIELD_TYPE_LANGUAGE;
     }
 
-    if (id3_field_parse(&frame->fields[i], &data, end - data, &encoding) == -1)
+    if (id3_field_parse(&frame->fields[i], &data, end - data, &encoding, frame) == -1)
       return -1;
   }
   

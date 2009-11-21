@@ -16,7 +16,7 @@
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/field.h 52629 2009-04-02T14:42:16.820176Z andy  $
+ * $Id: /sd/opensource/trunk/Audio-Scan/libid3tag/field.h 60446 2009-11-21T02:11:55.828645Z andy  $
  */
 
 # ifndef LIBID3TAG_FIELD_H
@@ -28,7 +28,7 @@ void id3_field_init(union id3_field *, enum id3_field_type);
 void id3_field_finish(union id3_field *);
 
 int id3_field_parse(union id3_field *, id3_byte_t const **,
-		    id3_length_t, enum id3_field_textencoding *);
+		    id3_length_t, enum id3_field_textencoding *, struct id3_frame *);
 
 id3_length_t id3_field_render(union id3_field const *, id3_byte_t **,
 			      enum id3_field_textencoding *, int);

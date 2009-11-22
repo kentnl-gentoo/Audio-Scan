@@ -1,5 +1,10 @@
 Revision history for Audio::Scan
 
+0.53    2009-11-22 17:20:00
+        - FLAC: Avoid wasting memory when reading picture block when
+          AUDIO_SCAN_NO_ARTWORK is set.
+        - Fixed Win32 compile issue.
+
 0.52    2009-11-20 23:30:00
         - Bug 15115, ignore ID3 LINK frame data in latin1 list type.
         - libid3tag: Avoid wasting memory when AUDIO_SCAN_NO_ARTWORK is set and we're

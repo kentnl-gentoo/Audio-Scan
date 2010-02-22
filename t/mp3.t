@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 267;
+use Test::More tests => 276;
 
 use Audio::Scan;
 
@@ -862,7 +862,7 @@ eval {
     is( $tags->{LINK}->[0], 'WCOh', 'ID3v2.3 LINK frame string ok' );
 }
 
-# Bug 15196, multiple TCON genre values
+# Bug 15196, multiple TCON genre values (v2.4)
 {
     my $s = Audio::Scan->scan( _f('v2.4-multiple-tcon.mp3') );
     
@@ -871,6 +871,17 @@ eval {
     is( ref $tags->{TCON}, 'ARRAY', 'ID3v2.4 multiple TCON is array' );
     is( $tags->{TCON}->[0], 'Rock', 'ID3v2.4 multiple TCON value 1 ok' );
     is( $tags->{TCON}->[1], 'Live', 'ID3v2.4 multiple TCON value 2 ok' );
+}
+
+# Bug 3998, multiple TCON genre values (v2.3 UTF-16)
+{
+    my $s = Audio::Scan->scan( _f('v2.3-multiple-tcon.mp3') );
+    
+    my $tags = $s->{tags};
+    
+    is( ref $tags->{TCON}, 'ARRAY', 'ID3v2.3 multiple TCON is array' );
+    is( $tags->{TCON}->[0], 'Live', 'ID3v2.3 multiple TCON value 1 ok' );
+    is( $tags->{TCON}->[1], 'Pop', 'ID3v2.3 multiple TCON value 2 ok' );
 }
 
 # Bug 15197, MPEG-2 Layer 3 bitrate calculation
@@ -882,6 +893,20 @@ eval {
     is( $info->{bitrate}, 64000, 'MPEG-2 Layer 3 bitrate ok' );
     is( $info->{samplerate}, 22050, 'MPEG-2 Layer 3 sample rate ok' );
     is( $info->{song_length_ms}, 364, 'MPEG-2 Layer 3 duration ok' );
+}
+
+# RGAD frame parsing
+{
+    my $s = Audio::Scan->scan( _f('v2.3-rgad.mp3') );
+    
+    my $tags = $s->{tags};
+    
+    is( ref $tags->{RGAD}, 'HASH', 'RGAD frame is a hash' );
+    is( $tags->{RGAD}->{peak}, '0.999020', 'RGAD peak ok' );
+    is( $tags->{RGAD}->{track_originator}, 3, 'RGAD track originator ok' );
+    is( $tags->{RGAD}->{track_gain}, '-5.700000 dB', 'RGAD track gain ok' );
+    is( $tags->{RGAD}->{album_originator}, 3, 'RGAD album originator ok' );
+    is( $tags->{RGAD}->{album_gain}, '-5.600000 dB', 'RGAD album gain ok' );
 }
 
 # Test for 

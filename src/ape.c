@@ -173,7 +173,6 @@ int _ape_get_tag_info(ApeTag* tag) {
 
     /* Check tag header for validity */
     if (memcmp(APE_PREAMBLE, &compare, 8) || 
-       (memcmp(APE_HEADER_FLAGS, (tmp_ptr+9), 3) != 0) || 
        (tmp_ptr[8] != '\0' && tmp_ptr[8] != '\1')) {
       return _ape_error(tag, "Bad tag header flags", -3);
     }
@@ -292,7 +291,7 @@ int _ape_parse_field(ApeTag* tag, uint32_t* offset) {
   }
   else if (val_length >= size - 1) {
     // Single item
-    value = newSVpvn( buffer_ptr(&tag->tag_data), size );
+    value = newSVpvn( buffer_ptr(&tag->tag_data), val_length < size ? val_length : size );
     
     buffer_consume(&tag->tag_data, size);
     

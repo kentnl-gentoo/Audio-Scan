@@ -2,7 +2,7 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 65;
+use Test::More tests => 68;
 
 use Audio::Scan;
 
@@ -30,7 +30,7 @@ eval {
     is($tags->{YEAR}, 2009, 'Year Tag ok');
     ok($tags->{VENDOR} =~ /Xiph/, 'Vendor ok');
 
-    is($info->{bitrate_average}, 9887, 'Bitrate ok');
+    is($info->{bitrate_average}, 757, 'Bitrate ok');
     is($info->{channels}, 2, 'Channels ok');
     is($info->{file_size}, 4553, 'File size ok' );
     is($info->{stereo}, 1, 'Stereo ok');
@@ -157,7 +157,7 @@ eval {
     my $info = $s->{info};
 
     is($info->{bitrate_nominal}, 206723, 'Bug1155 nominal bitrate ok');
-    is($info->{bitrate_average}, 1092, 'Bug1155 avg bitrate ok');
+    is($info->{bitrate_average}, 922, 'Bug1155 avg bitrate ok');
     is($info->{song_length_ms}, 187146, 'Bug1155 duration ok');
 }
 
@@ -166,7 +166,7 @@ eval {
 
     my $info = $s->{info};
 
-    is($info->{bitrate_average}, 7414, 'Bug1155-2 bitrate ok');
+    is($info->{bitrate_average}, 2028, 'Bug1155-2 bitrate ok');
     is($info->{song_length_ms}, 5864, 'Bug1155-2 duration ok');
 }
 
@@ -175,7 +175,7 @@ eval {
 
     my $info = $s->{info};
     
-    is($info->{bitrate_average}, 785, 'Bug803 bitrate ok');
+    is($info->{bitrate_average}, 633, 'Bug803 bitrate ok');
     is($info->{song_length_ms}, 219104, 'Bug803 song length ok');
 }
 
@@ -185,7 +185,7 @@ eval {
     my $info = $s->{info};
     my $tags = $s->{tags};
     
-    is($info->{bitrate_average}, 681, 'Bug905 bitrate ok');
+    is($info->{bitrate_average}, 534, 'Bug905 bitrate ok');
     is($info->{song_length_ms}, 223484, 'Bug905 song length ok');
     is($tags->{DATE}, '08-05-1998', 'Bug905 date ok');
 }
@@ -202,24 +202,31 @@ eval {
     is($tags->{ARTIST}, 'Test Artist', 'ASCII Tag ok via filehandle');
     is($tags->{YEAR}, 2009, 'Year Tag ok via filehandle');
 
-    is($info->{bitrate_average}, 9887, 'Bitrate ok via filehandle');
+    is($info->{bitrate_average}, 757, 'Bitrate ok via filehandle');
     
     close $fh;
 }
 
 # Find frame offset
 {
-    my $offset = Audio::Scan->find_frame( _f('bug1155-1.ogg'), 17005 );
+    my $offset = Audio::Scan->find_frame( _f('normal.ogg'), 800 );
     
-    is( $offset, 21351, 'Find frame ok' );
+    is( $offset, 12439, 'Find frame ok' );
+}
+
+# Test special case where target sample is in the first frame
+{
+    my $offset = Audio::Scan->find_frame( _f('normal.ogg'), 300 );
+    
+    is( $offset, 3979, 'Find sample in first frame ok' );
 }
 
 {
-    open my $fh, '<', _f('bug1155-1.ogg');
+    open my $fh, '<', _f('normal.ogg');
     
-    my $offset = Audio::Scan->find_frame_fh( ogg => $fh, 16600 );
+    my $offset = Audio::Scan->find_frame_fh( ogg => $fh, 600 );
     
-    is( $offset, 17004, 'Find frame via filehandle ok' );
+    is( $offset, 8259, 'Find frame via filehandle ok' );
     
     close $fh;
 }
@@ -245,6 +252,16 @@ eval {
     
     is( $info->{audio_offset}, 41740, 'Large page segments audio offset ok' );
     is( $tags->{ARTIST}, 'Led Zeppelin', 'Large page segments comments ok' );
+}
+
+# Test file with multiple logical bitstreams
+{
+    my $s = Audio::Scan->scan( _f('multiple-bitstreams.ogg') );
+    
+    my $info = $s->{info};
+    
+    is( $info->{bitrate_average}, 128000, 'Multiple bitstreams bitrate ok' );
+    is( $info->{song_length_ms}, 0, 'Multiple bitstreams length ok' );
 }
 
 sub _f {

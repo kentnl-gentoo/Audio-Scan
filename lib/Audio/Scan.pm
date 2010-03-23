@@ -2,7 +2,7 @@ package Audio::Scan;
 
 use strict;
 
-our $VERSION = '0.62';
+our $VERSION = '0.70';
 
 require XSLoader;
 XSLoader::load('Audio::Scan', $VERSION);
@@ -27,7 +27,7 @@ __END__
 
 =head1 NAME
 
-Audio::Scan - Fast C parser for all common audio file formats
+Audio::Scan - Fast C metadata and tag reader for all common audio file formats
 
 =head1 SYNOPSIS
 
@@ -56,8 +56,7 @@ Audio::Scan - Fast C parser for all common audio file formats
 =head1 DESCRIPTION
 
 Audio::Scan is a C-based scanner for audio file metadata and tag information. It currently
-supports MP3 via an included version of libid3tag, MP4, Ogg Vorbis, FLAC, ASF, WAV, AIFF,
-Musepack, Monkey's Audio, and WavPack.
+supports MP3, MP4, Ogg Vorbis, FLAC, ASF, WAV, AIFF, Musepack, Monkey's Audio, and WavPack.
 
 See below for specific details about each file format.
 
@@ -96,27 +95,23 @@ If you only need the tags and don't care about the metadata, use this method.
 Scans a filehandle. $type is the type of file to scan as, i.e. "mp3" or "ogg".
 Note that FLAC does not support reading from a filehandle.
 
-=head2 find_frame( $path, $offset )
+=head2 find_frame( $path, $timestamp_in_ms )
 
-Returns the byte offset to the first audio frame starting from $offset.
-
-The offset value is different depending on the file type:
+Returns the byte offset to the first audio frame starting from the given timestamp
+(in milliseconds).
 
 =over 4
 
-=item MP3, Ogg
+=item MP3, Ogg, FLAC, ASF, MP4
 
-Offset is the byte offset to start searching from.  The byte offset to the first
-audio packet/frame past this point will be returned.
-
-=item FLAC, ASF, MP4
-
-Offset is a timestamp in milliseconds.  The byte offset to the data packet
-containing this timestamp will be returned.
+The byte offset to the data packet containing this timestamp will be returned. For
+file formats that don't provide timestamp information such as MP3, the best estimate for
+the location of the timestamp will be returned.  This will be more accurate if the
+file has a Xing header or is CBR for example.
 
 =item WAV, AIFF, Musepack, Monkey's Audio, WavPack
 
-Not supported by find_frame.
+Not yet supported by find_frame.
 
 =back
 
@@ -193,16 +188,18 @@ The following metadata about a file may be returned:
 
 =head2 TAGS
 
-Raw tags are returned as found by libid3tag.  This means older tags such as ID3v1 and ID3v2.2
+Raw tags are returned as found.  This means older tags such as ID3v1 and ID3v2.2/v2.3
 are converted to ID3v2.4 tag names.  Multiple instances of a tag in a file will be returned
 as arrays.  Complex tags such as APIC and COMM are returned as arrays.  All tag fields are
-converted to upper-case.  Sample tag data:
+converted to upper-case.  All text is converted to UTF-8.
+
+Sample tag data:
 
     tags => {
           ALBUMARTISTSORT => "Solar Fields",
-          APIC => [ 0, "image/jpeg", 3, "", <binary data snipped> ],
+          APIC => [ "image/jpeg", 3, "", <binary data snipped> ],
           CATALOGNUMBER => "INRE 017",
-          COMM => [0, "eng", "", "Amazon.com Song ID: 202981429"],
+          COMM => ["eng", "", "Amazon.com Song ID: 202981429"],
           "MUSICBRAINZ ALBUM ARTIST ID" => "a2af1f31-c9eb-4fff-990c-c4f547a11b75",
           "MUSICBRAINZ ALBUM ID" => "282143c9-6191-474d-a31a-1117b8c88cc0",
           "MUSICBRAINZ ALBUM RELEASE COUNTRY" => "FR",
@@ -583,9 +580,6 @@ Musepack uses APEv2 tags.  They are returned as a hash of key/value pairs.
 
 =head2
 
-Currently only WavPack encoder version 4.x files are supported. Support for older versions
-may be added in a future release.
-
 The following metadata about a file may be returned.
 
     audio_offset
@@ -594,8 +588,8 @@ The following metadata about a file may be returned.
     channels
     encoder_version
     file_size
-    hybrid (1 if file is lossy)
-    lossless (1 if file is lossless)
+    hybrid (1 if file is lossy) (v4 only)
+    lossless (1 if file is lossless) (v4 only)
     samplerate
     song_length_ms
     total_samples

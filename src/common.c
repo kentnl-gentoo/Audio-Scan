@@ -36,10 +36,10 @@ _check_buf(PerlIO *infile, Buffer *buf, int min_wanted, int max_wanted)
 
     if ( (read = PerlIO_read(infile, tmp, max_wanted)) == 0 ) {
       if ( PerlIO_error(infile) ) {
-        PerlIO_printf(PerlIO_stderr(), "Error reading: %s (wanted %d)\n", strerror(errno), max_wanted);
+        warn("Error reading: %s (wanted %d)\n", strerror(errno), max_wanted);
       }
       else {
-        PerlIO_printf(PerlIO_stderr(), "Error: Unable to read %d bytes from file.\n", max_wanted);
+        warn("Error: Unable to read at least %d bytes from file.\n", min_wanted);
       }
 
       ret = 0;
@@ -50,12 +50,14 @@ _check_buf(PerlIO *infile, Buffer *buf, int min_wanted, int max_wanted)
 
     // Make sure we got enough
     if ( buffer_len(buf) < min_wanted ) {
-      PerlIO_printf(PerlIO_stderr(), "Error: Unable to read at least %d bytes from file (only read %d).\n", min_wanted, read);
+      warn("Error: Unable to read at least %d bytes from file (only read %d).\n", min_wanted, read);
       ret = 0;
       goto out;
     }
 
-    DEBUG_TRACE("Buffered %d bytes from file (min_wanted %d, max_wanted %d)\n", read, min_wanted, max_wanted);
+    DEBUG_TRACE("Buffered %d bytes from file @ %d (min_wanted %d, max_wanted %d)\n",
+      read, (int)PerlIO_tell(infile) - read, min_wanted, max_wanted
+    );
 
 out:
     Safefree(tmp);
@@ -82,7 +84,7 @@ void _split_vorbis_comment(char* comment, HV* tags) {
   SV* value = NULL;
 
   if (!comment) {
-    PerlIO_printf(PerlIO_stderr(), "Empty comment, skipping...\n");
+    DEBUG_TRACE("Empty comment, skipping...\n");
     return;
   }
 
@@ -90,7 +92,7 @@ void _split_vorbis_comment(char* comment, HV* tags) {
   half = strchr(comment, '=');
 
   if (half == NULL) {
-    PerlIO_printf(PerlIO_stderr(), "Comment \"%s\" missing \'=\', skipping...\n", comment);
+    DEBUG_TRACE("Comment \"%s\" missing \'=\', skipping...\n", comment);
     return;
   }
 
@@ -192,7 +194,7 @@ _file_size(PerlIO *infile)
     return buf.st_size;
   }
   
-  PerlIO_printf(PerlIO_stderr(), "Unable to stat: %s\n", strerror(errno));
+  warn("Unable to stat: %s\n", strerror(errno));
   
   return 0;
 #endif

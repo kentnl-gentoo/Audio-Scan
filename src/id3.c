@@ -799,70 +799,72 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
       // v2.4 handles multiple genres using null char separators (or $00 $00 in UTF-16),
       // this is handled by _id3_get_utf8_string      
       read += _id3_get_utf8_string(id3, &value, size - read, encoding);
-      sptr = SvPVX(value);
+      if (value != NULL && SvPOK(value)) {
+        sptr = SvPVX(value);
       
-      // Test if the string contains only a number,
-      // strtol will set tmp to end in this case
-      end = sptr + sv_len(value);
-      strtol(sptr, &tmp, 0);
+        // Test if the string contains only a number,
+        // strtol will set tmp to end in this case
+        end = sptr + sv_len(value);
+        strtol(sptr, &tmp, 0);
       
-      if ( tmp == end ) {
-        // Convert raw number to genre string
-        av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
+        if ( tmp == end ) {
+          // Convert raw number to genre string
+          av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
         
-        // value as an SV won't be used, must drop refcnt
-        SvREFCNT_dec(value);
-      }
-      else if ( *sptr == '(' ) {
-        // Handle (26), (26)Ambient, etc, only the number portion will be read
+          // value as an SV won't be used, must drop refcnt
+          SvREFCNT_dec(value);
+        }
+        else if ( *sptr == '(' ) {
+          // Handle (26), (26)Ambient, etc, only the number portion will be read
         
-        if (id3->version_major < 4) {
-          // v2.2/v2.3 handle multiple genres using parens for some reason, i.e. (51)(39) or (55)(Text)
-          char *ptr = sptr;
-          char *end = sptr + sv_len(value);
+          if (id3->version_major < 4) {
+            // v2.2/v2.3 handle multiple genres using parens for some reason, i.e. (51)(39) or (55)(Text)
+            char *ptr = sptr;
+            char *end = sptr + sv_len(value);
           
-          while (end - ptr > 0) {
-            if ( *ptr++ == '(' ) {
-              char *paren = strchr(ptr, ')');
-              if (paren == NULL)
-                paren = end;
+            while (end - ptr > 0) {
+              if ( *ptr++ == '(' ) {
+                char *paren = strchr(ptr, ')');
+                if (paren == NULL)
+                  paren = end;
               
-              if ( isdigit(*ptr) || !strncmp((char *)ptr, "RX", 2) || !strncmp((char *)ptr, "CR", 2) ) {
-                av_push( genres, newSVpv( _id3_genre_name((char *)ptr), 0 ) );
+                if ( isdigit(*ptr) || !strncmp((char *)ptr, "RX", 2) || !strncmp((char *)ptr, "CR", 2) ) {
+                  av_push( genres, newSVpv( _id3_genre_name((char *)ptr), 0 ) );
+                }
+                else {
+                  // Handle text within parens
+                  av_push( genres, newSVpvn(ptr,  paren - ptr) );
+                }
+                ptr = paren;
               }
-              else {
-                // Handle text within parens
-                av_push( genres, newSVpvn(ptr,  paren - ptr) );
-              }
-              ptr = paren;
             }
           }
-        }
-        else {
-          // v2.4, the (51) method is no longer valid but we will support it anyway
-          sptr++;
-          if ( isdigit(*sptr) || !strncmp(sptr, "RX", 2) || !strncmp(sptr, "CR", 2) ) {
-            av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
-          }
           else {
-            av_push( genres, newSVpv( (char *)sptr, 0 ) );
+            // v2.4, the (51) method is no longer valid but we will support it anyway
+            sptr++;
+            if ( isdigit(*sptr) || !strncmp(sptr, "RX", 2) || !strncmp(sptr, "CR", 2) ) {
+              av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
+            }
+            else {
+              av_push( genres, newSVpv( (char *)sptr, 0 ) );
+            }
           }
-        }
         
-        // value as an SV won't be used, must drop refcnt
-        SvREFCNT_dec(value);
-      }
-      else {
-        // Support raw RX/CR value
-        if ( !strncmp(sptr, "RX", 2) || !strncmp(sptr, "CR", 2) ) {
-          av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
-          
           // value as an SV won't be used, must drop refcnt
           SvREFCNT_dec(value);
         }
         else {
-          // Store plain text genre
-          av_push( genres, value );
+          // Support raw RX/CR value
+          if ( !strncmp(sptr, "RX", 2) || !strncmp(sptr, "CR", 2) ) {
+            av_push( genres, newSVpv( _id3_genre_name((char *)sptr), 0 ) );
+          
+            // value as an SV won't be used, must drop refcnt
+            SvREFCNT_dec(value);
+          }
+          else {
+            // Store plain text genre
+            av_push( genres, value );
+          }
         }
       }
     }
@@ -894,7 +896,8 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
     switch ( frametype->fields[i] ) {
       case ID3_FIELD_TYPE_LATIN1: // W* frames
         read += _id3_get_utf8_string(id3, &value, size - read, ISO_8859_1);
-        my_hv_store( id3->tags, id, value );
+        if (value != NULL && SvPOK(value))
+          my_hv_store( id3->tags, id, value );
         break;
       
       case ID3_FIELD_TYPE_STRINGLIST: // T* frames
@@ -910,7 +913,7 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
             
           read += _id3_get_utf8_string(id3, &value, size - read, encoding);
           
-          if (array != NULL) {
+          if (array != NULL && value != NULL && SvPOK(value)) {
             // second+ string, add to array
             av_push(array, value);
           }
@@ -995,7 +998,8 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
           }
           else {
             read += _id3_get_utf8_string(id3, &value, size - read, ISO_8859_1);
-            av_push( framedata, value );
+            if (value != NULL && SvPOK(value))
+              av_push( framedata, value );
           }
           break;
         
@@ -1004,7 +1008,8 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
         case ID3_FIELD_TYPE_LATIN1LIST: // LINK
           while (read < size) {
             read += _id3_get_utf8_string(id3, &value, size - read, ISO_8859_1);
-            av_push( framedata, value );
+            if (value != NULL && SvPOK(value))
+              av_push( framedata, value );
             value = NULL;
             DEBUG_TRACE("    latin1list, read %d\n", read);
           }
@@ -1027,8 +1032,10 @@ _id3_parse_v2_frame_data(id3info *id3, char const *id, uint32_t size, id3_framet
           SV *tmp = newSVpvn( "", 0 );
           while (read < size) {
             read += _id3_get_utf8_string(id3, &value, size - read, encoding);
-            sv_catsv( tmp, value );
-            SvREFCNT_dec(value);
+            if (value != NULL && SvPOK(value)) {
+              sv_catsv( tmp, value );
+              SvREFCNT_dec(value);
+            }
             value = NULL;
           }
           av_push( framedata, tmp );
@@ -1482,7 +1489,7 @@ _id3_parse_sylt(id3info *id3, uint8_t encoding, uint32_t len, AV *framedata)
     HV *lyric = newHV();
     
     read += _id3_get_utf8_string(id3, &value, len - read, encoding);
-    if (SvPOK(value) && sv_len(value)) {
+    if (value != NULL && SvPOK(value) && sv_len(value)) {
       my_hv_store( lyric, "text", value );
     }
     else {

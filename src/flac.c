@@ -253,6 +253,7 @@ _flac_parse(PerlIO *infile, char *file, HV *info, HV *tags, uint8_t seeking)
   
   my_hv_store( info, "file_size", newSVuv(flac->file_size) );
   my_hv_store( info, "audio_offset", newSVuv(flac->audio_offset) );
+  my_hv_store( info, "audio_size", newSVuv(flac->file_size - flac->audio_offset) );
   
   // Parse ID3 last, due to an issue with libid3tag screwing
   // up the filehandle
@@ -899,6 +900,7 @@ _flac_parse_picture(flacinfo *flac)
   
   // Skip past pic data if necessary
   if ( _env_true("AUDIO_SCAN_NO_ARTWORK") ) {
+    my_hv_store( picture, "offset", newSVuv(flac->audio_offset - pic_length) );
     _flac_skip(flac, pic_length);
   }
   else {

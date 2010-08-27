@@ -1,5 +1,17 @@
 Revision history for Audio::Scan
 
+0.84    2010-08-27 19:10:00
+        - Added an optional audio_md5 info value, this is the MD5 checksum of the
+          first N audio bytes of the file.  This is useful in determining if a file
+          is the same even when tags have been changed.  See the documentation for details.
+        - Added audio_size info value to all formats.
+        - Added image offset values in AUDIO_SCAN_NO_ARTWORK mode for some formats, so
+          image data may be extracted directly from the file if needed.  See the
+          documentation for specific details.
+        - AAC: Fixed samplerate values for AACplus files. The samplerate in the header
+          needs to be doubled to obtain the actual playback samplerate.
+        - ID3: Bug 16452, Don't add null strings as array entries for T* frames.
+
 0.83    2010-06-10 14:15:00
         - APE: Tag could be ignored when ID3v1 tag is present.
         - Fixed error handling for invalid RVAD tags.

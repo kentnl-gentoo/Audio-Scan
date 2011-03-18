@@ -2,7 +2,8 @@ use strict;
 
 use File::Spec::Functions;
 use FindBin ();
-use Test::More tests => 378;
+use Test::More tests => 382;
+use Test::Warn;
 
 use Audio::Scan;
 
@@ -123,20 +124,14 @@ eval {
 
 # File with no audio frames, test is rejected properly
 {
-    # Hide stderr
-    no strict 'subs';
-    no warnings;
-    open OLD_STDERR, '>&', STDERR;
-    close STDERR;
-    
-    my $s = Audio::Scan->scan_info( _f('v2.3-no-audio-frames.mp3') );
+    my $s;
+    warning_like { $s = Audio::Scan->scan_info( _f('v2.3-no-audio-frames.mp3') ); }
+        [ qr/Unable to find any MP3 frames in file/ ],
+        'File with no audio frames ok';
     
     my $info = $s->{info};
     
-    is( $info->{bitrate}, undef, 'File with no audio frames ok' );
-    
-    # Restore stderr
-    open STDERR, '>&', OLD_STDERR;
+    is( $info->{bitrate}, undef, 'File with no audio frames has undef bitrate ok' );
 }
 
 # MPEG1 Xing mono file to test xing_offset works properly
@@ -1257,6 +1252,29 @@ eval {
     ok( !ref $tags->{TPE1}, 'v2.2 multiple null strings in TP1 ok' );
     is( $tags->{TIT2}, 'Klangstudie II', 'v2.2 multiple null strings TT2 value ok' );
     is( $tags->{TPE1}, 'Herbert Eimert', 'v2.2 multiple null strings TP1 value ok' );
+}
+
+# Bad first samplerate (stream from Radio Paradise)
+{
+    my $s = Audio::Scan->scan( _f('bad-first-samplerate.mp3') );
+    my $info = $s->{info};
+    
+    is( $info->{samplerate}, 44100, 'Bad first samplerate detected as 44100 ok' );
+}
+
+# File with Xing tag but no LAME data, used to not include info->{vbr}
+{
+    my $s = Audio::Scan->scan( _f('v2.3-xing-no-lame.mp3') );
+    my $info = $s->{info};
+    
+    is( $info->{vbr}, 1, 'Xing without LAME marked as VBR ok' );
+}
+
+# File with extended header bit set but no extended header
+{
+    warning_like { Audio::Scan->scan( _f('v2.3-ext-header-invalid.mp3') ); }
+        [ qr/Error: Invalid ID3 extended header size/ ],
+        'v2.3 invalid extended header ok';
 }
 
 sub _f {    

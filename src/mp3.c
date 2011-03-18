@@ -213,6 +213,10 @@ _decode_mp3_frame(unsigned char *bptr, struct mp3frame *frame)
   if (frame->padding)
     frame->frame_size += frame->bytes_per_slot;
 
+  DEBUG_TRACE("Frame @%p: size=%d, %d samples, %dkbps %d/%d\n",
+      bptr, frame->frame_size, frame->samples_per_frame,
+      frame->bitrate_kbps, frame->samplerate, frame->channels);
+
   return 0;
 }
 
@@ -291,7 +295,7 @@ static short _mp3_get_average_bitrate(mp3info *mp3, uint32_t offset, uint32_t au
           }
         }
         
-        //DEBUG_TRACE("  Frame %d: %dkbps\n", frame_count, frame.bitrate_kbps);
+        //DEBUG_TRACE("  Frame %d: %dkbps, %dkHz\n", frame_count, frame.bitrate_kbps, frame.samplerate);
 
         if (frame.frame_size > buffer_len(mp3->buf)) {
           // Partial frame in buffer
@@ -507,6 +511,7 @@ _parse_xing(mp3info *mp3)
     DEBUG_TRACE("Found VBRI tag\n");
     
     mp3->xing_frame->vbri_tag = TRUE;
+    mp3->vbr = VBR;
     
     if ( !_check_buf(mp3->infile, mp3->buf, 14, MP3_BLOCK_SIZE) ) {
       return 0;
@@ -599,12 +604,12 @@ _mp3_parse(PerlIO *infile, char *file, HV *info)
       if ( !buffer_len(mp3->buf) ) {
         if (mp3->audio_offset >= mp3->file_size - 4) {
           // No audio frames in file
-          PerlIO_printf(PerlIO_stderr(), "Unable to find any MP3 frames in file: %s\n", file);
+          warn("Unable to find any MP3 frames in file: %s\n", file);
           goto out;
         }
         
         if ( !_check_buf(mp3->infile, mp3->buf, 4, MP3_BLOCK_SIZE) ) {
-          PerlIO_printf(PerlIO_stderr(), "Unable to find any MP3 frames in file: %s\n", file);
+          warn("Unable to find any MP3 frames in file: %s\n", file);
           goto out;
         }
       }
@@ -620,12 +625,44 @@ _mp3_parse(PerlIO *infile, char *file, HV *info)
     }
 
     if ( !_decode_mp3_frame( buffer_ptr(mp3->buf), &frame ) ) {
-      // Found a valid frame
-      DEBUG_TRACE("  valid frame\n");
+      struct mp3frame frame2, frame3;
       
-      found_first_frame = 1;
+      // Need the whole frame to consider it valid
+      if ( _check_buf(mp3->infile, mp3->buf, frame.frame_size, MP3_BLOCK_SIZE)
+
+        // If we have enough data for the start of the next frame then
+        // it must also look valid and be consistent
+        && (
+          !_check_buf(mp3->infile, mp3->buf, frame.frame_size + 4, MP3_BLOCK_SIZE)
+          || (
+               !_decode_mp3_frame( buffer_ptr(mp3->buf) + frame.frame_size, &frame2 )
+            && frame.samplerate == frame2.samplerate
+            && frame.channels == frame2.channels
+          )
+        )
+
+        // If we have enough data for the start of the over-next frame then
+        // it must also look valid and be consistent
+        && (
+          !_check_buf(mp3->infile, mp3->buf, frame.frame_size + frame2.frame_size + 4, MP3_BLOCK_SIZE)
+          || (
+               !_decode_mp3_frame( buffer_ptr(mp3->buf) + frame.frame_size + frame2.frame_size, &frame3 )
+            && frame.samplerate == frame3.samplerate
+            && frame.channels == frame3.channels
+          )
+        )
+      ) {
+        // Found a valid frame
+        DEBUG_TRACE("  valid frame\n");
+
+        found_first_frame = 1;
+      }
+      else {
+        DEBUG_TRACE("  false sync\n");
+      }
     }
-    else {
+
+    if (!found_first_frame) {
       // Not a valid frame, stray 0xFF
       DEBUG_TRACE("  invalid frame\n");
       
@@ -635,7 +672,7 @@ _mp3_parse(PerlIO *infile, char *file, HV *info)
   }
 
   if ( !found_first_frame ) {
-    PerlIO_printf(PerlIO_stderr(), "Unable to find any MP3 frames in file (checked 4K): %s\n", file);
+    warn("Unable to find any MP3 frames in file (checked 4K): %s\n", file);
     goto out;
   }
 
@@ -809,10 +846,10 @@ _mp3_parse(PerlIO *infile, char *file, HV *info)
         my_hv_store( info, "lame_preset", newSVpv( presets_old[mp3->xing_frame->lame_preset], 0 ) );
       }
     }
-
-    if (mp3->vbr == ABR || mp3->vbr == VBR) {
-      my_hv_store( info, "vbr", newSViv(1) );
-    }
+  }
+  
+  if (mp3->vbr == ABR || mp3->vbr == VBR) {
+    my_hv_store( info, "vbr", newSViv(1) );
   }
 
 out:

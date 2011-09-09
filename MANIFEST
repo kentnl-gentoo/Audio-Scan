@@ -37,6 +37,7 @@ src/id3_compat.gperf
 src/id3_frametype.c
 src/id3_frametype.gperf
 src/id3_genre.dat
+src/jenkins_hash.c
 src/mac.c
 src/md5.c
 src/mp3.c
@@ -199,6 +200,7 @@ t/mp4/alac-multiple-stts.m4a
 t/mp4/array-keys.m4a
 t/mp4/array-keys-int.m4a
 t/mp4/hd-aac.m4a
+t/mp4/heaac.mp4
 t/mp4/hint-track.m4a
 t/mp4/itunes811.m4a
 t/mp4/leading-mdat.m4a

@@ -21,7 +21,7 @@
   ghost@aladdin.com
 
  */
-/* $Id: md5.c 740 2010-08-27 17:25:28Z agrundman $ */
+/* $Id$ */
 /*
   Independent implementation of MD5 (RFC 1321).
 

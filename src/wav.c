@@ -387,8 +387,19 @@ _parse_aiff(PerlIO *infile, Buffer *buf, char *file, uint32_t file_size, HV *inf
     // Seek past SSND, everything else we parse
     // XXX: Are there other large chunks we should ignore?
     if ( !strcmp( chunk_id, "SSND" ) ) {
-      my_hv_store( info, "audio_offset", newSVuv(offset) );
-      my_hv_store( info, "audio_size", newSVuv(chunk_size) );
+      int ssnd_offset, ssnd_blocksize;
+	  
+      if ( !_check_buf(infile, buf, 8, WAV_BLOCK_SIZE) ) {
+        return;
+      }
+
+      ssnd_offset = buffer_get_int(buf);
+      ssnd_blocksize = buffer_get_int(buf);
+
+      DEBUG_TRACE("SSND offset: %u block size: %u\n", ssnd_offset, ssnd_blocksize);
+         
+      my_hv_store( info, "audio_offset", newSVuv(offset + 8 + ssnd_offset) );
+      my_hv_store( info, "audio_size", newSVuv(chunk_size - 8 - ssnd_offset) );
 
       // Seek past data if there are more chunks after it
       if ( file_size > offset + chunk_size ) {
@@ -421,6 +432,12 @@ _parse_aiff(PerlIO *infile, Buffer *buf, char *file, uint32_t file_size, HV *inf
       buffer_clear(buf);
     }
     else {
+      // sanity check size
+      if (chunk_size > file_size - offset) {
+        DEBUG_TRACE("chunk_size > file_size, skipping\n");
+        return;
+      }
+
       // Make sure we have enough data
       if ( !_check_buf(infile, buf, chunk_size, WAV_BLOCK_SIZE) ) {
         return;

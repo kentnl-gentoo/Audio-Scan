@@ -45,7 +45,7 @@ error "gperf generated tables don't work with this execution character set. Plea
  * along with this program; if not, write to the Free Software
  * Foundation, Inc., 59 Temple Place, Suite 330, Boston, MA  02111-1307  USA
  *
- * $Id: /sd/opensource/trunk/Audio-Scan/src/id3_compat.c 62165 2010-03-23T18:18:05.215904Z andy  $
+ * $Id$
  */
 
 #define EQ(id)    #id

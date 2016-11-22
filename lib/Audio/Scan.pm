@@ -2,7 +2,7 @@ package Audio::Scan;
 
 use strict;
 
-our $VERSION = '0.93';
+our $VERSION = '0.96';
 
 require XSLoader;
 XSLoader::load('Audio::Scan', $VERSION);
@@ -830,7 +830,7 @@ Musepack uses APEv2 tags.  They are returned as a hash of key/value pairs.
 
 =head1 WAVPACK
 
-=head2
+=head2 INFO
 
 The following metadata about a file may be returned.
 
@@ -851,9 +851,52 @@ The following metadata about a file may be returned.
 
 WavPack uses APEv2 tags.  They are returned as a hash of key/value pairs.
 
-=head1 
+=head1 DSF
+
+=head2 INFO
+
+The following metadata about a file may be returned.
+
+    audio_offset
+    audio_size
+    bits_per_sample
+    channels
+    song_length_ms
+    samplerate
+    block_size_per_channel
+
+=head2 TAGS
+
+ID3v2 tags can be embedded within DSF files.  These are returned exactly as for MP3 files.
+
+=head1 DSDIFF (DFF)
+
+=head2 INFO
+
+The following metadata about a file may be returned.
+
+    audio_offset
+    audio_size
+    bits_per_sample
+    channels
+    song_length_ms
+    samplerate
+    tag_diti_title
+    tag_diar_artist
+
+=head2 TAGS
+
+No separate tags are supported by the DSDIFF format.
+
+=head1
 
 =head1 THANKS
+
+Logitech & Slim Devices, for letting us release so much of our code to the world.
+Long live Squeezebox!
+
+Kimmo Taskinen, Adrian Smith, Clive Messer, and Jurgen Kramer for
+DSF/DSDIFF support and various other fixes.
 
 Some code from the Rockbox project was very helpful in implementing ASF and
 MP4 seeking.
@@ -878,13 +921,13 @@ L<http://www.geocities.com/xhelmboyx/quicktime/formats/mp4-layout.txt>
 
 =head1 AUTHORS
 
-Andy Grundman, E<lt>andy@slimdevices.comE<gt>
+Andy Grundman, E<lt>andy@hybridized.orgE<gt>
 
 Dan Sully, E<lt>daniel@cpan.orgE<gt>
 
 =head1 COPYRIGHT AND LICENSE
 
-Copyright (C) 2010 Logitech, Inc.
+Copyright (C) 2010-2011 Logitech, Inc.
 
 This program is free software; you can redistribute it and/or modify
 it under the terms of the GNU General Public License as published by

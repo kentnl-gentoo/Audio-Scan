@@ -50,10 +50,7 @@ src/ogg.c
 src/wav.c
 src/wavpack.c
 t/01use.t
-t/02pod.t
-t/03podcoverage.t
 t/04critic.rc
-t/04critic.t
 t/aac.t
 t/aac/id3v2.aac
 t/aac/leading-junk.aac
